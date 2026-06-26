@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TimeShift Hivemind</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>TimeShift <span class="accent">Hivemind</span></h1>
+      <nav>
+        <button class="tab active" data-tab="estate">Estate</button>
+        <button class="tab" data-tab="admit">Admit</button>
+      </nav>
+    </header>
+    <main>
+      <section id="estate" class="view active"><p class="loading">Loading estate…</p></section>
+      <section id="admit" class="view"><p class="loading">Loading proposal…</p></section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -6,11 +6,12 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
     "verbatimModuleSyntax": true,
     "declaration": true,
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["src", "test", "tools"]
+  "include": ["src", "test", "tools", "server"]
 }

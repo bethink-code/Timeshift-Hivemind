@@ -1,0 +1,13 @@
+{
+  "skills": [
+    { "name": "add-admin-console", "scope": "timeshift" },
+    { "name": "add-security-hardening", "scope": "timeshift" },
+    { "name": "code-review", "scope": "timeshift" },
+    { "name": "pre-commit-check", "scope": "timeshift" },
+    { "name": "scaffold-project", "scope": "timeshift" },
+    { "name": "security-guardian", "scope": "timeshift" },
+    { "name": "setup-doppler", "scope": "timeshift" },
+    { "name": "simplify", "scope": "timeshift" },
+    { "name": "molo-ui-design", "scope": "tenant", "project": "molo" }
+  ]
+}

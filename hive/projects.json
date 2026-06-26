@@ -1,0 +1,7 @@
+{
+  "map": [
+    { "match": "THHP companion", "project": "thhp" },
+    { "match": "the-herbal-horse", "project": "thhp" },
+    { "match": "Molo", "project": "molo" }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@timeshift/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TimeShift resolver core — pure, dependency-free composition engine (spec v0.2)",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build:cli": "esbuild tools/materialize-cli.ts --bundle --platform=node --format=esm --outfile=dist/materialize-cli.mjs",
+    "build:scan": "esbuild tools/scan-cli.ts --bundle --platform=node --format=esm --outfile=dist/scan.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

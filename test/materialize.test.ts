@@ -41,14 +41,17 @@ describe("materializer: the cascade scopes skills per project", () => {
     expect(thhp).not.toContain("molo-ui/SKILL.md");
   });
 
-  it("lets a project skill override a global one of the same name", () => {
+  it("the global wins by default — a project cannot quietly override it (deny-by-default)", () => {
     const molo = planMaterialization(hive, "molo");
-    expect(contentFor(molo, "house/SKILL.md")).toContain("MOLO-OVERRIDE");
-    expect(contentFor(molo, "house/SKILL.md")).not.toContain("GLOBAL");
+    expect(contentFor(molo, "house/SKILL.md")).toContain("GLOBAL");
+    expect(contentFor(molo, "house/SKILL.md")).not.toContain("MOLO-OVERRIDE");
+  });
 
-    // a project with no skills of its own gets the plain global one
-    const other = planMaterialization(hive, "unknown");
-    expect(contentFor(other, "house/SKILL.md")).toContain("GLOBAL");
+  it("a project overrides only when the global is explicitly opened (delegated)", () => {
+    const opened = hive.map((s) =>
+      s.name === "house" && s.scope === "timeshift" ? { ...s, behaviour: "open" as const } : s,
+    );
+    expect(contentFor(planMaterialization(opened, "molo"), "house/SKILL.md")).toContain("MOLO-OVERRIDE");
   });
 });
 
@@ -62,7 +65,7 @@ describe("materializer: writes to disk and speaks the hook contract", () => {
 
     const houseMd = readFileSync(join(sandbox, "house", "SKILL.md"), "utf8");
     expect(houseMd).toContain("name: house");
-    expect(houseMd).toContain("MOLO-OVERRIDE");
+    expect(houseMd).toContain("GLOBAL"); // top rules by default; the project copy is blocked
     expect(houseMd.startsWith("---\n")).toBe(true);
   });
 

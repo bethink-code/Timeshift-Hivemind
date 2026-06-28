@@ -40,8 +40,8 @@ export type {
 } from "./validators";
 export { compileValidators, runValidators, steeringLines, describeValidator } from "./validators";
 
-export type { Skill, SkillSurface, SkillsByScope } from "./skill";
-export { inheritSkills, surfacesOf } from "./skill";
+export type { Skill, SkillSurface, SkillsByScope, SkillOutcome, SkillStep, ResolvedSkill } from "./skill";
+export { inheritSkills, resolveSkills, surfacesOf } from "./skill";
 
 export type { RenderedPrompt, RenderedSection, RenderOptions } from "./render";
 export { renderPrompt } from "./render";

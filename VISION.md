@@ -1,7 +1,20 @@
 # TimeShift Hivemind — the plain-language vision
 
+## Our promise
+
+**Your rules rule — and you can prove it.**
+
+- Your most important rules can't be quietly overridden — by anyone, ever.
+- Nothing changes without the right person's yes, and every change is on the record.
+- You can always see exactly why your AI does what it does.
+- The safe way is the easy way — we won't let you make the wrong move.
+- It stays yours: your AI, your keys, no lock-in.
+
+---
+
 This is the north star: what we're building and how it works, with no jargon. When a
-decision gets complicated, come back here. If a feature doesn't serve this, question it.
+decision gets complicated, come back here. If a feature doesn't serve the promise above,
+question it.
 
 ---
 

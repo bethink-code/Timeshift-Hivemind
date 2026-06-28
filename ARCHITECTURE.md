@@ -91,6 +91,25 @@ because a sovereign deployment may run a model with no skill-routing at all.
   - a Molo / direct-serve deployment is another adapter.
 - Swap the model or the host, swap the adapter; the core does not change.
 
+## Model and credentials: bring your own (default)
+
+Model-agnostic extends to credentials: by default each tenant or deployment brings its
+own model and its own keys (BYO). This is the credential side of P1 sovereignty ("your
+AI, hostage to no provider"), and it keeps the no-secrets rule intact — the keys are the
+tenant's, held **right-of-seam** in the deployment's secret store, **never in TimeShift's
+tree**.
+
+- The **model binding** (which provider, which model, how the prompt is sent) is an
+  adapter concern at the edge, not in the core.
+- **Managing** a tenant's model and keys is **admin** functionality.
+- There is no LLM-call surface in the build today: the engine produces prompts; the model
+  is consumed at the host/edge. So nothing needs a key yet, and BYO-keys is **deferred to
+  the admin build**, with the principle fixed now.
+- **Reference implementation** (local dev): the Qalisa project
+  (`C:/LocalDev/Qalisa 20260620`) has a working per-tenant key and tenancy pattern to draw
+  on — `packages/core/src/auth/apiKeys.ts`, `apps/engine/src/middleware/apiKeyAuth.ts`,
+  `packages/db/src/schema/tenancy.ts`.
+
 ## What this changes versus the engine today
 
 - The cascade default flips: **deny-by-default top-down**, not most-specific-wins.

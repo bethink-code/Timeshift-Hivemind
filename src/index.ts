@@ -9,6 +9,7 @@ export type {
   Scope,
   Kind,
   ResolutionBehaviour,
+  Enforcement,
   Merge,
   SlotValue,
   Provenance,
@@ -19,7 +20,7 @@ export type {
   PersonalitySlot,
   Slot,
 } from "./slot";
-export { slotInvariants } from "./slot";
+export { slotInvariants, behaviourOf, enforcementOf } from "./slot";
 
 export type { EngineEventType, EngineEvent } from "./provenance";
 export { AppendOnlyLog } from "./provenance";

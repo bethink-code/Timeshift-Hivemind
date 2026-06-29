@@ -25,7 +25,7 @@ const handoffRequired: EngineSlot = {
   register: "engine",
   scope: "timeshift",
   kind: "constraint",
-  behaviour: "mandate",
+  behaviour: "locked",
   steer: false, // detect-only: enforced by validator, no prompt line
   check: { type: "handoff-available" }, // a policy primitive from the closed vocabulary
   interview: null, // platform-authored, not interviewed
@@ -39,7 +39,7 @@ const languageOfficial: ComplianceSlot = {
   register: "compliance",
   scope: "region",
   kind: "constraint",
-  behaviour: "mandate", // L7 forces this; the type would reject any other value
+  behaviour: "locked", // L7 forces this; the type would reject any other value
   steer: true, // steer-needed: the model must be told, and is also validated
   check: { type: "reply-in-official-language" },
   interview: {
@@ -57,7 +57,7 @@ const domainDisclaimer: EngineSlot = {
   register: "engine",
   scope: "tenant",
   kind: "fill",
-  behaviour: "mandate", // a fill that is also a mandate: supplied up, override forbidden down
+  behaviour: "locked", // a locked fill: supplied up, override forbidden down (deny-by-default)
   interview: {
     question: "What disclaimer must appear on every response?",
     answerShape: { type: "shortText", maxLength: 280 },
@@ -73,7 +73,7 @@ const personaTone: PersonalitySlot = {
   register: "personality",
   scope: "agent",
   kind: "fill", // L9 forces this; the type has no other option for personality
-  behaviour: "default",
+  behaviour: "locked",
   interview: {
     question: "How should this agent sound?",
     answerShape: { type: "enum", options: ["warm", "neutral", "formal"] },
@@ -105,12 +105,12 @@ describe("substrate: the slot tree round-trips and the laws hold by construction
     }
   });
 
-  it("L7: every compliance slot is a mandate", () => {
+  it("L7: every compliance slot is locked", () => {
     const all: Slot[] = SCOPE_ORDER.flatMap((s) => [...tree.slots[s]]);
     const compliance = all.filter((s): s is ComplianceSlot => s.register === "compliance");
     expect(compliance.length).toBeGreaterThan(0);
     for (const slot of compliance) {
-      expect(slot.behaviour).toBe("mandate");
+      expect(slot.behaviour).toBe("locked");
     }
   });
 

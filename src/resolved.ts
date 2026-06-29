@@ -6,16 +6,16 @@
 // this is reproducible. It carries not just the winning value but the full trail of
 // how it won, so "why is it like this?" is answerable for any agent (Section 9).
 
-import type { Kind, Provenance, Register, Scope, SlotValue } from "./slot";
+import type { Enforcement, Kind, Provenance, Register, Scope, SlotValue } from "./slot";
 import type { ValidatorSpec } from "./vocabulary";
 
 /** One scope's contribution to a key during resolution, recorded for the trail. */
 export interface ResolutionStep {
   readonly scope: Scope;
   readonly value: SlotValue;
-  readonly behaviour: "default" | "mandate";
+  readonly behaviour: "locked" | "open";
   /** What became of this scope's say on the key. */
-  readonly outcome: "won" | "overridden" | "blocked-by-mandate";
+  readonly outcome: "won" | "overridden" | "blocked-by-lock";
 }
 
 /** One key after the cascade has been adjudicated (L4): a single winner, no losers
@@ -24,7 +24,8 @@ export interface ResolvedKey {
   readonly key: string;
   readonly value: SlotValue;
   readonly winningScope: Scope;
-  /** Did a mandate stop the cascade at this key (L3)? */
+  /** Governance: is this key locked against a lower-scope override (Law 1)? Under
+   *  deny-by-default most keys are; the trail says whether a lock actually denied one. */
   readonly locked: boolean;
   readonly provenance: Provenance;
   /** Every scope that spoke on this key, in cascade order; the winner's step last. */
@@ -37,6 +38,8 @@ export interface ResolvedKey {
   readonly check?: ValidatorSpec;
   /** Constraint keys only: whether this also renders a prompt steering line. */
   readonly steer?: boolean;
+  /** Constraint keys only: enforcement severity, defaulted; drives fail-closed handoff. */
+  readonly enforcement?: Enforcement;
 }
 
 /** The whole agent, resolved. Deterministic for a given input (L6). */

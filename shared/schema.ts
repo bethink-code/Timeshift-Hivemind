@@ -17,6 +17,7 @@ import type {
   Scope,
   Kind,
   ResolutionBehaviour,
+  Enforcement,
   Merge,
   SlotValue,
   Provenance,
@@ -77,11 +78,14 @@ export const slots = pgTable(
     key: text("key").notNull(),
     register: text("register").$type<Register>().notNull(),
     kind: text("kind").$type<Kind>().notNull(),
-    behaviour: text("behaviour").$type<ResolutionBehaviour>().notNull(),
+    /** Governance (Law 1). Nullable: absent resolves to "locked", the deny-by-default. */
+    behaviour: text("behaviour").$type<ResolutionBehaviour>(),
     /** List slots only (L8). */
     merge: text("merge").$type<Merge>(),
     /** Constraint slots only. */
     steer: boolean("steer"),
+    /** Constraint slots only: enforcement severity. Absent resolves to "fail-closed". */
+    enforcement: text("enforcement").$type<Enforcement>(),
     /** Constraint slots only: the declarative check from the closed vocabulary. */
     check: jsonb("check").$type<ValidatorSpec>(),
     interview: jsonb("interview").$type<Interview>(),

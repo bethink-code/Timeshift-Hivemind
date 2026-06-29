@@ -32,12 +32,12 @@ export interface KeyExplanation {
 export interface ValidatorWatch {
   readonly key: string;
   readonly rule: string;
-  readonly locked: boolean;
+  readonly failClosed: boolean;
 }
 
 /** The answer to "why is this agent like this?": skills (available and loaded), the
- *  scopes and answers behind every key, the mandates that stopped the cascade, the
- *  validators watching, all at their versions. */
+ *  scopes and answers behind every key, the locks that actually stopped a lower-scope
+ *  override, the validators watching, all at their versions. */
 export interface AgentExplanation {
   readonly tenantId: string;
   readonly agentId: string;
@@ -52,6 +52,13 @@ export interface AgentExplanation {
 export interface ExplainOptions {
   readonly skills?: readonly Skill[];
   readonly selected?: readonly string[];
+}
+
+/** A key whose lock actually denied a lower scope an override (its trail holds a blocked
+ *  step). Under deny-by-default most keys are locked, so "what's locked" is near-total and
+ *  uninformative; "where a lock was tested and held" is the account an owner wants. */
+function stoppedCascade(k: ResolvedObject["keys"][number]): boolean {
+  return k.trail.some((s) => s.outcome === "blocked-by-lock");
 }
 
 export function explainAgent(resolved: ResolvedObject, options: ExplainOptions = {}): AgentExplanation {
@@ -76,8 +83,8 @@ export function explainAgent(resolved: ResolvedObject, options: ExplainOptions =
     agentId: resolved.agentId,
     scopeVersions: resolved.scopeVersions,
     keys: Object.freeze(keys),
-    mandates: Object.freeze(resolved.keys.filter((k) => k.locked).map((k) => k.key)),
-    validators: Object.freeze(compiled.map((v) => ({ key: v.key, rule: describeValidator(v.spec), locked: v.locked }))),
+    mandates: Object.freeze(resolved.keys.filter(stoppedCascade).map((k) => k.key)),
+    validators: Object.freeze(compiled.map((v) => ({ key: v.key, rule: describeValidator(v.spec), failClosed: v.failClosed }))),
     skillsAvailable: Object.freeze(inherited.map((s) => s.name)),
     skillsLoaded: Object.freeze(inherited.filter((s) => selected.has(s.name)).map((s) => s.name)),
   };
@@ -88,7 +95,8 @@ export function explainAgent(resolved: ResolvedObject, options: ExplainOptions =
  *
  * The resolver is pure and has no clock; this is the deliberate, explicit step that
  * records what it did, with a caller-supplied timestamp to keep it deterministic. One
- * event for the resolution, and one for each mandate that stopped a cascade.
+ * event for the resolution, and one for each lock that actually stopped a lower-scope
+ * override — an event the log records because it happened, not for every locked key.
  */
 export function recordResolution(log: AppendOnlyLog, resolved: ResolvedObject, at: string): void {
   log.append({
@@ -98,7 +106,7 @@ export function recordResolution(log: AppendOnlyLog, resolved: ResolvedObject, a
     detail: { agentId: resolved.agentId, keys: resolved.keys.length },
   });
   for (const k of resolved.keys) {
-    if (!k.locked) continue;
+    if (!stoppedCascade(k)) continue;
     log.append({
       type: "mandate.stopped-cascade",
       tenantId: resolved.tenantId,

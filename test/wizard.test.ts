@@ -15,7 +15,7 @@ const toneShape = { type: "enum", options: ["warm", "neutral", "formal"] } as co
 const tree = treeOf({
   timeshift: [
     // platform-authored: no interview, must never appear in any wizard
-    engine({ key: "handoff.required", scope: "timeshift", kind: "constraint", behaviour: "mandate", check: { type: "handoff-available" }, defaultValue: true }),
+    engine({ key: "handoff.required", scope: "timeshift", kind: "constraint", check: { type: "handoff-available" }, defaultValue: true }),
   ],
   region: [
     compliance({
@@ -31,7 +31,6 @@ const tree = treeOf({
       key: "domain.disclaimer",
       scope: "tenant",
       kind: "fill",
-      behaviour: "mandate",
       defaultValue: "",
       interview: { question: "What disclaimer must appear on every response?", answerShape: { type: "shortText", maxLength: 280 }, required: true },
     }),
@@ -39,7 +38,6 @@ const tree = treeOf({
   agent: [
     personality({
       key: "persona.tone",
-      behaviour: "default",
       defaultValue: "neutral",
       interview: { question: "How should this agent sound?", answerShape: toneShape, required: false },
     }),

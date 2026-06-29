@@ -7,9 +7,15 @@
 //
 // The resolution laws are encoded in these types where TypeScript can express
 // them, so illegal states cannot be authored, not merely discouraged:
-//   - L7 (compliance is always locked): ComplianceSlot.behaviour is fixed to "mandate".
+//   - L7 (compliance is always locked): ComplianceSlot.behaviour is fixed to "locked".
 //   - L9 (no behaviour-bearing slot reaches the agent): PersonalitySlot.kind is fixed
 //     to "fill", and "choice" can occur only in the engine register.
+//
+// Two orthogonal axes the engine keeps separate (ARCHITECTURE.md). GOVERNANCE
+// (`behaviour`) answers "may a lower scope override this?" — deny-by-default, so the
+// default is locked. ENFORCEMENT (`enforcement`, constraint slots only) answers "if
+// this check fails at runtime, hand off or merely flag?" These do not touch: who may
+// edit a rule has nothing to do with whether a failed check is fatal.
 
 import type { ValidatorSpec } from "./vocabulary";
 
@@ -22,8 +28,16 @@ export type Scope = "timeshift" | "region" | "tenant" | "agent";
 /** What a slot compiles into (Section 5). */
 export type Kind = "fill" | "constraint" | "choice";
 
-/** Resolution behaviour: a default cascades (L2), a mandate locks the cascade (L3). */
-export type ResolutionBehaviour = "default" | "mandate";
+/** Governance behaviour: deny-by-default, top-down (ARCHITECTURE.md, Law 1). "locked"
+ *  (the default) means the top rules — no lower scope may override this. "open" means the
+ *  holding scope delegates the override downward, into a bounded sandbox. This inverts the
+ *  spec's original most-specific-wins (L2/L3): the new default is locked-unless-delegated. */
+export type ResolutionBehaviour = "locked" | "open";
+
+/** Enforcement severity for a constraint (orthogonal to governance). "fail-closed" (the
+ *  default) makes a failed check force a handoff (P8); "advisory" records the failure but
+ *  ships. A delegated rule can still be fail-closed; a locked rule can still be advisory. */
+export type Enforcement = "fail-closed" | "advisory";
 
 /** How a narrower scope's list combines with a broader one (L8). List slots only. */
 export type Merge = "replace" | "append";
@@ -81,13 +95,16 @@ export interface EngineSlot extends SlotCommon {
   readonly register: "engine";
   readonly scope: "timeshift" | "tenant";
   readonly kind: Kind;
-  readonly behaviour: ResolutionBehaviour;
+  /** Governance. Optional; absent means "locked" — the deny-by-default rule (Law 1). */
+  readonly behaviour?: ResolutionBehaviour;
   /** List-valued slots only (L8). */
   readonly merge?: Merge;
   /** Constraint slots only: does the rule also render a steering line (Section 6)? */
   readonly steer?: boolean;
   /** Constraint slots only: the declarative check from the closed vocabulary (#3). */
   readonly check?: ValidatorSpec;
+  /** Constraint slots only: enforcement severity. Absent means "fail-closed". */
+  readonly enforcement?: Enforcement;
 }
 
 /** Compliance register: externally required. Authored outside the tree, imposed at
@@ -97,10 +114,14 @@ export interface ComplianceSlot extends SlotCommon {
   readonly register: "compliance";
   readonly scope: "region";
   readonly kind: "fill" | "constraint";
-  readonly behaviour: "mandate";
+  /** L7: compliance is always locked. The type permits no other value. Optional only so
+   *  it may be omitted at the authoring site; absent still resolves to locked. */
+  readonly behaviour?: "locked";
   readonly merge?: Merge;
   readonly steer?: boolean;
   readonly check?: ValidatorSpec;
+  /** Constraint slots only. Absent means "fail-closed", which compliance always is. */
+  readonly enforcement?: Enforcement;
 }
 
 /** Personality register: who-it-is. Thin by law. The only register the agent scope
@@ -110,7 +131,9 @@ export interface PersonalitySlot extends SlotCommon {
   readonly register: "personality";
   readonly scope: "agent";
   readonly kind: "fill";
-  readonly behaviour: ResolutionBehaviour;
+  /** Governance. Optional; absent means "locked". Agent is the narrowest scope, so there
+   *  is nothing below to delegate to — the field is carried for type uniformity only. */
+  readonly behaviour?: ResolutionBehaviour;
 }
 
 export type Slot = EngineSlot | ComplianceSlot | PersonalitySlot;
@@ -132,6 +155,11 @@ export function slotInvariants(slot: Slot): readonly string[] {
     problems.push(`${slot.key}: steer is for constraint slots only (Section 5)`);
   }
 
+  const enforcement = "enforcement" in slot ? slot.enforcement : undefined;
+  if (enforcement !== undefined && slot.kind !== "constraint") {
+    problems.push(`${slot.key}: enforcement is for constraint slots only`);
+  }
+
   const hasCheck = "check" in slot && slot.check !== undefined;
   if (slot.kind === "constraint" && !hasCheck) {
     problems.push(`${slot.key}: a constraint slot needs a declarative check (Section 7)`);
@@ -141,4 +169,16 @@ export function slotInvariants(slot: Slot): readonly string[] {
   }
 
   return problems;
+}
+
+/** A slot's governance, with the deny-by-default rule applied: an unstated behaviour is
+ *  locked (Law 1). The one place the default lives, so the resolver never re-decides it. */
+export function behaviourOf(slot: Slot): ResolutionBehaviour {
+  return slot.behaviour ?? "locked";
+}
+
+/** A constraint's enforcement, defaulted to fail-closed (P8). The one place that default
+ *  lives, so the validator face and the resolver agree on a slot's severity. */
+export function enforcementOf(slot: Slot): Enforcement {
+  return ("enforcement" in slot ? slot.enforcement : undefined) ?? "fail-closed";
 }

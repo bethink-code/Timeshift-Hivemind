@@ -2,17 +2,25 @@
 //
 // A pure, deterministic function over an already-tenant-scoped tree. No I/O, no
 // clock, no framework, no model. It walks the scopes and applies the laws:
-//   L1 per key   L2 most specific wins   L3 locks beat specificity
+//   L1 per key   L2 TOP-DOWN, DENY-BY-DEFAULT   L3 a lock denies lower scopes
 //   L4 resolve then render (losers leave the output)   L5 match keys, not prose
 //   L6 deterministic (same input, same output, same order)
 //   L7/L8/L9 runtime halves: compliance stays locked, lists merge by their owner's
 //            rule with element-level locks, no key is split across registers.
+//
+// L2/L3 are the governance inversion (ARCHITECTURE.md, Law 1): the highest scope that
+// holds a key wins and, unless it is "open", locks every lower scope out. The top rules;
+// a lower scope overrides only what a higher one delegated. This replaces the spec's
+// original most-specific-wins. Governance (who may override) is kept separate from
+// enforcement (whether a failed check is fatal) — see slot.ts.
 //
 // The bar here is not "composes correctly" but "cannot be made to compose wrongly"
 // (Section 7). So the resolver validates the whole tree first and FAILS CLOSED: a
 // malformed tree throws rather than yielding a half-right prompt.
 
 import {
+  behaviourOf,
+  enforcementOf,
   slotInvariants,
   type Merge,
   type Scope,
@@ -70,7 +78,12 @@ function finishKey(
     register: slot.register,
   };
   if (slot.kind === "constraint" && "check" in slot && slot.check !== undefined) {
-    return { ...base, check: slot.check, steer: ("steer" in slot ? slot.steer : undefined) ?? false };
+    return {
+      ...base,
+      check: slot.check,
+      steer: ("steer" in slot ? slot.steer : undefined) ?? false,
+      enforcement: enforcementOf(slot),
+    };
   }
   return base;
 }
@@ -143,9 +156,11 @@ export function lint(tree: SlotTree): readonly string[] {
   return Object.freeze(validateTree(tree, collectByKey(tree)));
 }
 
-/** Replace-mode resolution (scalars, and lists whose owner chose `replace`).
- *  Most specific wins (L2) until a mandate stops the cascade (L3); blocked scopes
- *  are recorded, never silently dropped (Section 9). */
+/** Replace-mode resolution (scalars, and lists whose owner chose `replace`), TOP-DOWN and
+ *  DENY-BY-DEFAULT (L2/L3, Law 1). `entries` are broadest-to-narrowest; the first holder
+ *  wins. A "locked" winner (the default) freezes every lower scope out — each is recorded
+ *  as blocked, never silently dropped (Section 9). An "open" winner delegates: the next
+ *  narrower scope may override it, and so on down the open chain until a lock or the end. */
 function resolveReplace(key: string, entries: readonly ScopedSlot[]): ResolvedKey {
   const steps: ResolutionStep[] = [];
   let winner: ScopedSlot | undefined;
@@ -154,16 +169,17 @@ function resolveReplace(key: string, entries: readonly ScopedSlot[]): ResolvedKe
 
   for (const { scope, slot } of entries) {
     const value = slotValue(slot);
+    const behaviour = behaviourOf(slot);
     if (locked) {
-      steps.push({ scope, value, behaviour: slot.behaviour, outcome: "blocked-by-mandate" });
+      steps.push({ scope, value, behaviour, outcome: "blocked-by-lock" });
       continue;
     }
     const prev = winnerIdx >= 0 ? steps[winnerIdx] : undefined;
     if (prev) steps[winnerIdx] = { ...prev, outcome: "overridden" };
-    steps.push({ scope, value, behaviour: slot.behaviour, outcome: "won" });
+    steps.push({ scope, value, behaviour, outcome: "won" });
     winnerIdx = steps.length - 1;
     winner = { scope, slot };
-    if (slot.behaviour === "mandate") locked = true;
+    if (behaviour === "locked") locked = true;
   }
 
   if (!winner) throw new ResolutionError([`${key}: resolved to no winner`]);
@@ -171,8 +187,10 @@ function resolveReplace(key: string, entries: readonly ScopedSlot[]): ResolvedKe
 }
 
 /** Append-mode resolution (L8). Every scope that speaks contributes its elements in
- *  cascade order; duplicates keep their first (broadest) position, so a narrower
- *  scope can never reorder or shadow a locked element. A mandate anywhere locks. */
+ *  cascade order; duplicates keep their first (broadest) position, so a narrower scope
+ *  can only add, never reorder or shadow a higher element. That add-only shape is itself
+ *  the deny-by-default rule for lists: a locked contributor (the default) marks the list
+ *  established, so a lower scope's sandbox is "extend", never "rewrite". */
 function resolveAppend(key: string, entries: readonly ScopedSlot[]): ResolvedKey {
   const elements: string[] = [];
   const steps: ResolutionStep[] = [];
@@ -181,10 +199,11 @@ function resolveAppend(key: string, entries: readonly ScopedSlot[]): ResolvedKey
 
   for (const { scope, slot } of entries) {
     const value = slotValue(slot);
+    const behaviour = behaviourOf(slot);
     const list = Array.isArray(value) ? value : [];
     for (const el of list) if (!elements.includes(el)) elements.push(el);
-    if (slot.behaviour === "mandate") locked = true;
-    steps.push({ scope, value, behaviour: slot.behaviour, outcome: "won" });
+    if (behaviour === "locked") locked = true;
+    steps.push({ scope, value, behaviour, outcome: "won" });
     last = { scope, slot };
   }
 

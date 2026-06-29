@@ -7,7 +7,10 @@ in this order, before building the interface. Each is a tested, committed step.
 Skills resolved most-specific-wins with no lock (`inheritSkills` overwrote higher with
 lower). Slots can lock but default to open.
 - [x] Governed skill resolution: locks, top-down, deny-by-default (`resolveSkills`).
-- [ ] Flip the slot resolver default to locked / top-down (slots).
+- [x] Flip the slot resolver default to locked / top-down (slots). `behaviour` is now
+      `locked` (default) / `open`; the resolver is top-down, deny-by-default. Governance
+      and enforcement are decoupled: a new `enforcement` (`fail-closed`/`advisory`) axis,
+      not the lock, decides whether a failed check hands off.
 
 ## P2 — "Nothing changes without the right person's yes; every change on the record." — PARTIAL
 `by` is a self-declared string (no identity); the audit is fragmented (admit only; the
@@ -37,7 +40,7 @@ Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys 
 
 ## Build order
 1. Governed skills (P1 skills, P3 skill-trail) — **done**
-2. Flip the slot resolver default (P1 slots)
+2. Flip the slot resolver default (P1 slots) — **done**
 3. Tree-integrity validator (P4)
 4. Authority Principal + tenant-scoping (P2)
 5. Unified audit substrate (P2, P3)

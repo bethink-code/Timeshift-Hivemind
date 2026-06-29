@@ -11,8 +11,8 @@ import { compliance, engine, personality, skill, treeOf } from "./helpers";
 
 const sampleTree = (): SlotTree =>
   treeOf({
-    agent: [personality({ key: "persona.tone", behaviour: "default", defaultValue: "warm" })],
-    tenant: [engine({ key: "domain.disclaimer", scope: "tenant", kind: "fill", behaviour: "mandate", defaultValue: "Educational only." })],
+    agent: [personality({ key: "persona.tone", defaultValue: "warm" })],
+    tenant: [engine({ key: "domain.disclaimer", scope: "tenant", kind: "fill", defaultValue: "Educational only." })],
     region: [
       compliance({ key: "compliance.notice", kind: "fill", defaultValue: "Regulated by the FSB." }),
       compliance({ key: "compliance.language.official", kind: "constraint", steer: true, check: { type: "reply-in-official-language" }, defaultValue: true }),

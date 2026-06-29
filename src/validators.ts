@@ -3,20 +3,24 @@
 // A constraint leaves the prompt and becomes a check that runs after generation
 // (Section 6). Compilation is a projection of the one resolved object, never a second
 // data model: it reads the resolved constraint keys and binds each to its declarative
-// spec. Execution FAILS CLOSED (Section 7): if any mandate validator fails, the result
-// is a handoff, never a silent ship and never a dead end. The degradation path and the
-// safety net are the same mechanism (P8).
+// spec. Execution FAILS CLOSED (Section 7): if any fail-closed validator fails, the
+// result is a handoff, never a silent ship and never a dead end. The degradation path
+// and the safety net are the same mechanism (P8).
+//
+// Severity is the ENFORCEMENT axis, not the governance lock (ARCHITECTURE.md). Whether a
+// failed check forces a handoff is the slot's `enforcement`, decoupled from whether a
+// lower scope may override the rule: a delegated rule can still be fail-closed.
 
 import type { Provenance } from "./slot";
 import type { ResolvedObject } from "./resolved";
 import type { NamedPattern, ValidatorSpec } from "./vocabulary";
 
-/** A resolved constraint, ready to run. `locked` (a mandate) is what makes a failure
- *  fail closed to handoff rather than merely flag. */
+/** A resolved constraint, ready to run. `failClosed` (the enforcement axis) is what makes
+ *  a failure hand off rather than merely flag — independent of the governance lock. */
 export interface CompiledValidator {
   readonly key: string;
   readonly spec: ValidatorSpec;
-  readonly locked: boolean;
+  readonly failClosed: boolean;
   readonly steer: boolean;
   readonly provenance: Provenance;
 }
@@ -32,12 +36,12 @@ export interface ValidationContext {
 export interface ValidationFailure {
   readonly key: string;
   readonly reason: string;
-  /** A failed mandate forces the handoff; a failed default is recorded only. */
-  readonly locked: boolean;
+  /** A failed fail-closed check forces the handoff; a failed advisory is recorded only. */
+  readonly failClosed: boolean;
 }
 
 export interface ValidationResult {
-  /** "handoff" iff any mandate validator failed. Never "blocked-and-shipped". */
+  /** "handoff" iff any fail-closed validator failed. Never "blocked-and-shipped". */
   readonly status: "pass" | "handoff";
   readonly failures: readonly ValidationFailure[];
 }
@@ -54,8 +58,8 @@ const PATTERNS: Record<NamedPattern, RegExp> = {
 /**
  * Compile a resolved agent's constraints into runnable validators.
  *
- * An inactive, unlocked constraint (resolved to `false` and not mandated) compiles to
- * nothing. Everything else becomes a validator carrying its lock and its steer flag,
+ * An inactive, advisory constraint (resolved to `false` and not fail-closed) compiles to
+ * nothing. Everything else becomes a validator carrying its severity and its steer flag,
  * so the same constraint can be both validated here and reminded in the prompt
  * (the `steer` half of the M1 fix).
  */
@@ -63,11 +67,12 @@ export function compileValidators(resolved: ResolvedObject): readonly CompiledVa
   const compiled: CompiledValidator[] = [];
   for (const k of resolved.keys) {
     if (k.kind !== "constraint" || k.check === undefined) continue;
-    if (k.value === false && !k.locked) continue;
+    const failClosed = k.enforcement !== "advisory";
+    if (k.value === false && !failClosed) continue;
     compiled.push({
       key: k.key,
       spec: k.check,
-      locked: k.locked,
+      failClosed,
       steer: k.steer ?? false,
       provenance: k.provenance,
     });
@@ -97,10 +102,10 @@ export function runValidators(
   const failures: ValidationFailure[] = [];
   for (const v of validators) {
     if (!passes(v.spec, output, context)) {
-      failures.push({ key: v.key, reason: describeValidator(v.spec), locked: v.locked });
+      failures.push({ key: v.key, reason: describeValidator(v.spec), failClosed: v.failClosed });
     }
   }
-  const status = failures.some((f) => f.locked) ? "handoff" : "pass";
+  const status = failures.some((f) => f.failClosed) ? "handoff" : "pass";
   return Object.freeze({ status, failures: Object.freeze(failures) });
 }
 

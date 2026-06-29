@@ -39,7 +39,7 @@ export const engine = (s: Omit<EngineSlot, "register" | "provenance" | "answerVe
   ({ register: "engine", provenance: prov("author"), answerVersionStamp: "v1", interview: null, ...s });
 
 export const compliance = (s: Omit<ComplianceSlot, "register" | "scope" | "behaviour" | "provenance" | "answerVersionStamp" | "interview"> & WithInterview): ComplianceSlot =>
-  ({ register: "compliance", scope: "region", behaviour: "mandate", provenance: prov("regulator"), answerVersionStamp: "v1", interview: null, ...s });
+  ({ register: "compliance", scope: "region", behaviour: "locked", provenance: prov("regulator"), answerVersionStamp: "v1", interview: null, ...s });
 
 export const personality = (s: Omit<PersonalitySlot, "register" | "scope" | "kind" | "provenance" | "answerVersionStamp" | "interview"> & WithInterview): PersonalitySlot =>
   ({ register: "personality", scope: "agent", kind: "fill", provenance: prov("agent-owner"), answerVersionStamp: "v1", interview: null, ...s });

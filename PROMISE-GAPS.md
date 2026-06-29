@@ -13,9 +13,12 @@ lower). Slots can lock but default to open.
       not the lock, decides whether a failed check hands off.
 
 ## P2 — "Nothing changes without the right person's yes; every change on the record." — PARTIAL
-`by` is a self-declared string (no identity); the audit is fragmented (admit only; the
-hook is silent; direct file edits are unlogged).
-- [ ] Authority takes a verified Principal {id, tenant, role}, scoped to a tenant.
+`by` was a self-declared string (no identity); the audit is still fragmented (admit only;
+the hook is silent; direct file edits are unlogged).
+- [x] Authority takes a verified Principal {id, tenant, role}, scoped to a tenant
+      (`src/authority.ts` `canConfirm` — enforces role AND tenant; a tenant-admin of one
+      tenant cannot act on another. Wired into admit; the demo edge marks the trust
+      boundary — identity comes from the session in production, never the request body).
 - [ ] One append-only audit substrate; admit + materialize + resolution all emit; the
       hook records its failures.
 
@@ -44,6 +47,6 @@ Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys 
 1. Governed skills (P1 skills, P3 skill-trail) — **done**
 2. Flip the slot resolver default (P1 slots) — **done**
 3. Tree-integrity validator (P4) — **done**
-4. Authority Principal + tenant-scoping (P2)
+4. Authority Principal + tenant-scoping (P2) — **done**
 5. Unified audit substrate (P2, P3)
 6. Later, with the interface/admin: the router, the "why" screen, BYO-keys

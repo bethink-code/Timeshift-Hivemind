@@ -8,7 +8,17 @@
 // recorded. Nothing moves without a confirmed decision from the right human.
 
 import { classifyVariants, type DriftVerdict } from "./scan";
-import { checkSkillAddition, LAYER_POLICY, SCOPE_ORDER, type IntegrityVerdict } from "../src/index";
+import {
+  canConfirm,
+  checkSkillAddition,
+  LAYER_POLICY,
+  requirementFor,
+  SCOPE_ORDER,
+  type AuthorityDecision,
+  type IntegrityVerdict,
+  type Principal,
+  type Role,
+} from "../src/index";
 
 export type AdmitScope = "timeshift" | "tenant" | "agent";
 
@@ -55,18 +65,12 @@ export interface AdmitProposal {
   readonly integrity: IntegrityVerdict;
 }
 
-/** Who must say yes to admit a skill at this scope. An agent-scope addition is
- *  behaviour a staff member cannot wave through themselves (L9), so it escalates to the
- *  admin: the engine routes the confirmation up rather than deciding for anyone. */
-export function requiredConfirmer(scope: AdmitScope): string {
-  switch (scope) {
-    case "timeshift":
-      return "platform-owner";
-    case "tenant":
-      return "tenant-admin";
-    case "agent":
-      return "tenant-admin";
-  }
+/** The role that must say yes to admit a skill at this scope, for display on the proposal.
+ *  Sourced from the authority module so the rule lives in exactly one place. An agent-scope
+ *  addition is behaviour a staff member cannot wave through themselves (L9), so it requires
+ *  the tenant admin: the engine routes the confirmation up rather than deciding for anyone. */
+export function requiredConfirmer(scope: AdmitScope): Role {
+  return requirementFor(scope).role;
 }
 
 function sameSlot(a: { name: string; scope: AdmitScope; project?: string }, b: { name: string; scope: AdmitScope; project?: string }): boolean {
@@ -127,8 +131,9 @@ export interface Decision {
   readonly scope: AdmitScope;
   readonly project?: string;
   readonly accept: boolean;
-  /** Who confirmed. Must match the proposal's requiredConfirmer for the accept to take. */
-  readonly by: string;
+  /** The verified principal confirming. Their role and tenant are checked against what the
+   *  scope requires (authority.canConfirm), not taken on trust as a self-declared string. */
+  readonly by: Principal;
   readonly reason?: string;
 }
 
@@ -138,7 +143,9 @@ export interface AuditEntry {
   readonly scope: AdmitScope;
   readonly project?: string;
   readonly status: AdmitStatus;
+  /** The confirming principal's id (or "unconfirmed"), so the record names a who, not a what. */
   readonly by: string;
+  readonly role?: Role;
   readonly reason?: string;
 }
 
@@ -165,9 +172,12 @@ export function applyDecisions(
   for (const p of proposals) {
     const d = decisions.find((x) => sameSlot(x, p));
     const skill = incoming.find((s) => sameSlot(s, p));
-    // Three gates, all required: a human ticked it, the right role confirmed, and the
-    // tree-integrity guard admits it. A ticked upward-duplicate still does not take.
-    const authorised = d?.accept === true && d.by === p.requiredConfirmer && skill !== undefined && p.integrity.admissible;
+    // The principal's role and tenant are checked against what the scope requires; a
+    // tenant-scoped skill's tenant is its project. A platform-owner change is tenant-unbound.
+    const auth: AuthorityDecision = d?.accept === true ? canConfirm(d.by, p.scope, p.project) : { ok: false };
+    // Three gates, all required: a human ticked it, an authorised principal confirmed it,
+    // and the tree-integrity guard admits it. A ticked upward-duplicate still does not take.
+    const authorised = d?.accept === true && auth.ok && skill !== undefined && p.integrity.admissible;
 
     if (authorised) {
       applied.push(skill);
@@ -176,19 +186,25 @@ export function applyDecisions(
         name: p.name,
         scope: p.scope,
         status: p.status,
-        by: d.by,
+        by: d.by.id,
+        role: d.by.role,
         ...(p.project ? { project: p.project } : {}),
         ...(d.reason ? { reason: d.reason } : {}),
       });
     } else {
       skipped.push(p);
-      const blockedReason = !p.integrity.admissible ? p.integrity.problems[0]?.message : undefined;
+      const blockedReason = !p.integrity.admissible
+        ? p.integrity.problems[0]?.message
+        : d?.accept === true && !auth.ok
+          ? auth.reason
+          : undefined;
       audit.push({
         action: "skipped",
         name: p.name,
         scope: p.scope,
         status: p.status,
-        by: d?.by ?? "unconfirmed",
+        by: d?.by.id ?? "unconfirmed",
+        ...(d?.by.role ? { role: d.by.role } : {}),
         ...(p.project ? { project: p.project } : {}),
         ...(blockedReason ? { reason: blockedReason } : {}),
       });

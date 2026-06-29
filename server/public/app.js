@@ -62,7 +62,8 @@ function renderAdmit() {
 
   $("#admit").innerHTML =
     `<div class="controls">Acting as ` +
-    `<select id="role"><option>platform-owner</option><option>tenant-admin</option><option>staff-member</option></select>` +
+    `<select id="role"><option>platform-owner</option><option>tenant-admin</option><option>staff</option></select>` +
+    ` of tenant <input id="tenant" value="platform" size="10" />` +
     `<button class="primary" id="confirm">Confirm ticked</button>` +
     `<span class="muted">Nothing is applied until you confirm.</span></div>` +
     `<h2>Needs your decision (${diverged.length})</h2><div class="card">${diverged.map((x) => checkboxRow(x.p, x.i)).join("") || '<div class="row muted">none</div>'}</div>` +
@@ -73,7 +74,10 @@ function renderAdmit() {
 }
 
 async function confirmTicked() {
-  const by = $("#role").value;
+  // DEMO ONLY: a real deployment derives the principal from the session, never these inputs.
+  const role = $("#role").value;
+  const tenant = $("#tenant").value || "platform";
+  const by = { id: "demo-" + role, tenant, role };
   const decisions = [...document.querySelectorAll("#admit input:checked")].map((cb) => {
     const p = proposalCache[Number(cb.dataset.i)];
     return { name: p.name, scope: p.scope, project: p.project, accept: true, by };
@@ -89,7 +93,7 @@ async function confirmTicked() {
   const routed = res.skipped.filter((p) => ticked.has(p.name)).map((p) => `${esc(p.name)} (needs ${esc(p.requiredConfirmer)})`);
 
   $("#result").innerHTML =
-    `<div class="result"><strong>Admitted ${admitted.length}</strong> as ${esc(by)}.` +
+    `<div class="result"><strong>Admitted ${admitted.length}</strong> as ${esc(role)} of ${esc(tenant)}.` +
     (admitted.length ? ` ${admitted.join(", ")}.` : "") +
     (routed.length ? `<br/><span class="routed">Routed up (you lack authority): ${routed.join(", ")}.</span>` : "") +
     `</div>`;

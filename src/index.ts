@@ -67,3 +67,6 @@ export type {
   ExistingPlacement,
 } from "./integrity";
 export { checkSkillAddition, isPathSafeName, LAYER_POLICY } from "./integrity";
+
+export type { Role, Principal, AuthorityRequirement, AuthorityDecision } from "./authority";
+export { requirementFor, canConfirm } from "./authority";

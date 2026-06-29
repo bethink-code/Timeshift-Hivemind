@@ -29,7 +29,10 @@ own rewritten `audit.json`; resolution used the in-memory log; the hook was sile
 Slot resolution is explainable; skill selection had no trail; the router is missing; the
 "why" is not surfaced in the UI.
 - [x] Skill resolution trail (`resolveSkills` records won / overridden / blocked-by-lock).
-- [ ] The router (per-task relevance) — later, a new component.
+- [x] The router (`src/router.ts`): deterministic, model-independent per-task relevance from
+      trigger surfaces (name + description) only, so bodies stay lazy. A `Router` interface
+      lets a model/embedding router swap in; each selection records the matched terms (the
+      "why"). `routedNames` feeds `renderPrompt`'s `selected`.
 - [ ] Surface the "why" in the interface — with the interface.
 
 ## P4 — "The safe way is the easy way; we won't let you make a wrong move." — DONE
@@ -52,4 +55,5 @@ Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys 
 3. Tree-integrity validator (P4) — **done**
 4. Authority Principal + tenant-scoping (P2) — **done**
 5. Unified audit substrate (P2, P3) — **done**
-6. Later, with the interface/admin: the router, the "why" screen, BYO-keys
+6. The router (model-independent core) — **done**
+7. With the interface/admin: the "why" screen, BYO-keys

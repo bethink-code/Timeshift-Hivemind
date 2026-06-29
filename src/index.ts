@@ -70,3 +70,6 @@ export { checkSkillAddition, isPathSafeName, LAYER_POLICY } from "./integrity";
 
 export type { Role, Principal, AuthorityRequirement, AuthorityDecision } from "./authority";
 export { requirementFor, canConfirm } from "./authority";
+
+export type { RouteRequest, RoutedSkill, RouteResult, Router } from "./router";
+export { route, deterministicRouter, routedNames } from "./router";

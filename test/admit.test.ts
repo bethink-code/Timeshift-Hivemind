@@ -39,9 +39,36 @@ describe("propose: classifies the incoming skill, changing nothing", () => {
     expect(p.verdict?.summary).toMatch(/shared/);
   });
 
-  it("treats the same name at a different scope as new, not a conflict (a legit override)", () => {
+  it("treats the same name held ABOVE as an inherit-conflict, not a legit override (Law 1)", () => {
+    // code-review lives at timeshift (Engine). A tenant cannot copy it down and edit it:
+    // that is an upward duplicate. The new governance inverts the old most-specific-wins.
     const p = proposeOne({ name: "code-review", scope: "tenant", project: "Lekana", content: "totally different" }, hive);
-    expect(p.status).toBe("new"); // tenant/Lekana is a different slot from timeshift
+    expect(p.status).toBe("inherit");
+    expect(p.integrity.admissible).toBe(false);
+    expect(p.integrity.inheritsFrom).toBe("timeshift");
+  });
+});
+
+describe("tree-integrity gate: the guard is the last line, after the human tick", () => {
+  it("refuses a ticked upward-duplicate even from the right role", () => {
+    const incoming: IncomingSkill[] = [{ name: "code-review", scope: "tenant", project: "Lekana", content: "copy-and-edit" }];
+    const proposals = propose(incoming, hive);
+    const result = applyDecisions(incoming, proposals, [
+      { name: "code-review", scope: "tenant", project: "Lekana", accept: true, by: "tenant-admin" },
+    ]);
+    expect(result.applied).toHaveLength(0);
+    expect(result.skipped.map((p) => p.name)).toContain("code-review");
+    expect(result.audit.find((a) => a.name === "code-review")?.reason).toMatch(/already lives/);
+  });
+
+  it("blocks a path-unsafe name from ever being admitted", () => {
+    const incoming: IncomingSkill[] = [{ name: "../escape", scope: "timeshift", content: "x" }];
+    const proposals = propose(incoming, hive);
+    expect(proposals[0]!.integrity.admissible).toBe(false);
+    const result = applyDecisions(incoming, proposals, [
+      { name: "../escape", scope: "timeshift", accept: true, by: "platform-owner" },
+    ]);
+    expect(result.applied).toHaveLength(0);
   });
 });
 

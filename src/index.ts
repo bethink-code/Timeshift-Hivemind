@@ -58,3 +58,12 @@ export { explainAgent, recordResolution, overview } from "./oversight";
 
 export type { WizardAudience, WizardQuestion } from "./wizard";
 export { buildWizard, wizardAuthority, validateAnswer } from "./wizard";
+
+export type {
+  IntegrityRelation,
+  IntegrityNote,
+  IntegrityVerdict,
+  IncomingForCheck,
+  ExistingPlacement,
+} from "./integrity";
+export { checkSkillAddition, isPathSafeName, LAYER_POLICY } from "./integrity";

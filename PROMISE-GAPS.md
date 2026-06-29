@@ -26,13 +26,15 @@ Slot resolution is explainable; skill selection had no trail; the router is miss
 - [ ] The router (per-task relevance) — later, a new component.
 - [ ] Surface the "why" in the interface — with the interface.
 
-## P4 — "The safe way is the easy way; we won't let you make a wrong move." — PARTIAL
-Admit checks only the exact same slot; no whole-tree duplicate or upward check; no
-path-safe name; not layer-aware.
-- [ ] Tree-integrity validator: above → inherit, same level → needs authority, nowhere →
-      new; enforce no-duplication and no-upward-change.
-- [ ] Path-safe names + frontmatter / size checks.
-- [ ] Layer-aware strictness (tightest at User).
+## P4 — "The safe way is the easy way; we won't let you make a wrong move." — DONE
+Admit checked only the exact same slot; no whole-tree duplicate or upward check; no
+path-safe name; not layer-aware. Now `src/integrity.ts` (`checkSkillAddition`) is the
+tree-integrity guard, wired into the admit flow as a third gate after the human tick.
+- [x] Tree-integrity validator: above → inherit (rejected, no upward duplicate), same
+      level → edit needing authority, below → supersedes the lower copy, nowhere → new.
+- [x] Path-safe names + frontmatter (description) / size checks.
+- [x] Layer-aware strictness (tightest at User): per-layer body-size ceilings, blast-radius
+      flag at Engine.
 
 ## P5 — "It stays yours: your AI, your keys, no lock-in." — MOSTLY KEPT
 Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys not built.
@@ -41,7 +43,7 @@ Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys 
 ## Build order
 1. Governed skills (P1 skills, P3 skill-trail) — **done**
 2. Flip the slot resolver default (P1 slots) — **done**
-3. Tree-integrity validator (P4)
+3. Tree-integrity validator (P4) — **done**
 4. Authority Principal + tenant-scoping (P2)
 5. Unified audit substrate (P2, P3)
 6. Later, with the interface/admin: the router, the "why" screen, BYO-keys

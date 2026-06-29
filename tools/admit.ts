@@ -8,8 +8,23 @@
 // recorded. Nothing moves without a confirmed decision from the right human.
 
 import { classifyVariants, type DriftVerdict } from "./scan";
+import { checkSkillAddition, LAYER_POLICY, SCOPE_ORDER, type IntegrityVerdict } from "../src/index";
 
 export type AdmitScope = "timeshift" | "tenant" | "agent";
+
+/** Whether an existing skill sits on the incoming skill's own lineage (ancestor, same
+ *  node, or descendant) — never a sibling subtree's. timeshift is everyone's ancestor;
+ *  tenant and agent placements belong to one project's vertical path only. This is what
+ *  keeps a name in project A from colliding with the same name in project B. */
+function inLineage(e: ExistingSkill, incoming: { name: string; scope: AdmitScope; project?: string }): boolean {
+  if (e.name !== incoming.name) return false;
+  const ei = SCOPE_ORDER.indexOf(e.scope);
+  const ti = SCOPE_ORDER.indexOf(incoming.scope);
+  const isGlobal = (s: AdmitScope): boolean => s === "timeshift";
+  if (ei < ti) return isGlobal(e.scope) || e.project === incoming.project; // ancestor
+  if (ei === ti) return e.project === incoming.project; // same node
+  return isGlobal(incoming.scope) || e.project === incoming.project; // descendant
+}
 
 export interface IncomingSkill {
   readonly name: string;
@@ -25,7 +40,7 @@ export interface ExistingSkill {
   readonly project?: string;
 }
 
-export type AdmitStatus = "new" | "identical" | "diverged";
+export type AdmitStatus = "new" | "identical" | "diverged" | "inherit";
 
 export interface AdmitProposal {
   readonly name: string;
@@ -35,6 +50,9 @@ export interface AdmitProposal {
   readonly recommendation: string;
   readonly verdict?: DriftVerdict;
   readonly requiredConfirmer: string;
+  /** The tree-integrity verdict. A non-admissible proposal cannot be applied even if a
+   *  human ticks it: the guard is the last line, the human gate the second. */
+  readonly integrity: IntegrityVerdict;
 }
 
 /** Who must say yes to admit a skill at this scope. An agent-scope addition is
@@ -56,12 +74,27 @@ function sameSlot(a: { name: string; scope: AdmitScope; project?: string }, b: {
 }
 
 export function proposeOne(incoming: IncomingSkill, existing: readonly ExistingSkill[]): AdmitProposal {
+  const integrity = checkSkillAddition(
+    { name: incoming.name, scope: incoming.scope, body: incoming.content },
+    existing.filter((e) => inLineage(e, incoming)).map((e) => ({ name: e.name, scope: e.scope })),
+  );
   const base = {
     name: incoming.name,
     scope: incoming.scope,
     requiredConfirmer: requiredConfirmer(incoming.scope),
+    integrity,
     ...(incoming.project ? { project: incoming.project } : {}),
   };
+
+  // Governance first: a name that lives above you is inherited, never copied down.
+  if (integrity.relation === "inherit-conflict") {
+    const from = LAYER_POLICY[integrity.inheritsFrom!].label;
+    return { ...base, status: "inherit", recommendation: `Already governed at the ${from} layer above you — inherit it, don't copy it down.` };
+  }
+  // A structural problem (path-unsafe name, oversized body) blocks regardless of drift.
+  if (!integrity.admissible) {
+    return { ...base, status: "new", recommendation: `Cannot add as-is: ${integrity.problems[0]!.message}.` };
+  }
 
   const clash = existing.find((e) => sameSlot(e, incoming));
   if (!clash) {
@@ -132,7 +165,9 @@ export function applyDecisions(
   for (const p of proposals) {
     const d = decisions.find((x) => sameSlot(x, p));
     const skill = incoming.find((s) => sameSlot(s, p));
-    const authorised = d?.accept === true && d.by === p.requiredConfirmer && skill !== undefined;
+    // Three gates, all required: a human ticked it, the right role confirmed, and the
+    // tree-integrity guard admits it. A ticked upward-duplicate still does not take.
+    const authorised = d?.accept === true && d.by === p.requiredConfirmer && skill !== undefined && p.integrity.admissible;
 
     if (authorised) {
       applied.push(skill);
@@ -147,6 +182,7 @@ export function applyDecisions(
       });
     } else {
       skipped.push(p);
+      const blockedReason = !p.integrity.admissible ? p.integrity.problems[0]?.message : undefined;
       audit.push({
         action: "skipped",
         name: p.name,
@@ -154,6 +190,7 @@ export function applyDecisions(
         status: p.status,
         by: d?.by ?? "unconfirmed",
         ...(p.project ? { project: p.project } : {}),
+        ...(blockedReason ? { reason: blockedReason } : {}),
       });
     }
   }
@@ -165,12 +202,17 @@ export function applyDecisions(
 
 export function renderProposal(proposals: readonly AdmitProposal[]): string {
   const where = (p: AdmitProposal): string => `${p.scope}${p.project ? `/${p.project}` : ""}`;
-  const news = proposals.filter((p) => p.status === "new");
-  const identical = proposals.filter((p) => p.status === "identical");
-  const diverged = proposals.filter((p) => p.status === "diverged");
+  const flagNotes = (p: AdmitProposal): string[] =>
+    p.integrity.flags.map((f) => `    - ⚠ ${f.message}`);
+
+  const blocked = proposals.filter((p) => !p.integrity.admissible);
+  const admissible = proposals.filter((p) => p.integrity.admissible);
+  const news = admissible.filter((p) => p.status === "new");
+  const identical = admissible.filter((p) => p.status === "identical");
+  const diverged = admissible.filter((p) => p.status === "diverged");
 
   const lines: string[] = ["# Admit review", ""];
-  lines.push(`${proposals.length} skill(s): ${news.length} new, ${diverged.length} conflict, ${identical.length} already present.`);
+  lines.push(`${proposals.length} skill(s): ${news.length} new, ${diverged.length} conflict, ${identical.length} already present, ${blocked.length} blocked.`);
   lines.push("Tick a box to confirm. Nothing is applied until you do.");
   lines.push("");
 
@@ -178,6 +220,7 @@ export function renderProposal(proposals: readonly AdmitProposal[]): string {
   if (diverged.length === 0) lines.push("- none");
   for (const p of diverged) {
     lines.push(`- [ ] **${p.name}** (${where(p)}) — ${p.recommendation} _Confirmer: ${p.requiredConfirmer}._`);
+    lines.push(...flagNotes(p));
   }
   lines.push("");
 
@@ -185,6 +228,15 @@ export function renderProposal(proposals: readonly AdmitProposal[]): string {
   if (news.length + identical.length === 0) lines.push("- none");
   for (const p of [...news, ...identical]) {
     lines.push(`- [ ] **${p.name}** (${where(p)}) — ${p.recommendation}`);
+    lines.push(...flagNotes(p));
+  }
+  lines.push("");
+
+  lines.push("## Cannot add (the tree decides, not the tick)");
+  if (blocked.length === 0) lines.push("- none");
+  for (const p of blocked) {
+    lines.push(`- **${p.name}** (${where(p)}) — ${p.recommendation}`);
+    lines.push(...flagNotes(p));
   }
   lines.push("");
   return lines.join("\n");

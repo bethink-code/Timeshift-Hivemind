@@ -18,6 +18,7 @@ import type { AdmitScope, Decision } from "../tools/admit";
 import type { Principal, Role } from "../src/index";
 import { assembleEstate } from "./estate";
 import { acceptOnboarding, buildOnboarding } from "./onboard";
+import { whyAudit, whyProjects, whyResolve, whyRoute } from "./why";
 
 const root = process.cwd();
 const hiveDir = join(root, "hive");
@@ -42,6 +43,28 @@ app.get("/api/admit/onboard-proposal", (_req, res) => {
 app.post("/api/admit/accept", (req, res) => {
   const decisions = parseDecisions(req.body);
   res.json(acceptOnboarding(root, decisions));
+});
+
+// ---- the "why" surface (P3): resolution trails, routing, and the audit log ----
+
+function qstring(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+app.get("/api/why/projects", (_req, res) => {
+  res.json(whyProjects(root));
+});
+
+app.get("/api/why/resolve", (req, res) => {
+  res.json(whyResolve(root, qstring(req.query.project)));
+});
+
+app.get("/api/why/route", (req, res) => {
+  res.json(whyRoute(root, qstring(req.query.project), qstring(req.query.q)));
+});
+
+app.get("/api/why/audit", (_req, res) => {
+  res.json(whyAudit(root));
 });
 
 const port = Number(process.env.PORT ?? 5000);

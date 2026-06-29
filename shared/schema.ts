@@ -146,3 +146,32 @@ export const engineEvents = pgTable(
     typeIdx: index("engine_events_type_idx").on(t.type),
   }),
 );
+
+/**
+ * Bring-your-own model + keys (P5, ARCHITECTURE.md) — the SHAPE, baked now, the admin
+ * tooling deferred (there is no LLM-call surface yet; the engine makes prompts, the model
+ * is consumed at the edge). A tenant binds its own provider and model here; the model
+ * binding is an adapter concern at the edge, recorded for the admin to manage.
+ *
+ * CRUCIAL: the key itself is NEVER stored in this tree. Only `keyRef` lives here — an alias
+ * that points into the deployment's own secret store (Doppler, a vault, env), held
+ * right-of-seam. TimeShift records WHICH key to use, never the secret. This keeps the
+ * no-secrets rule intact while the credential stays the tenant's (BYO, no lock-in).
+ */
+export const tenantModelBindings = pgTable(
+  "tenant_model_bindings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
+    /** e.g. "anthropic", "openai", "self-hosted" — the adapter to route through. */
+    provider: text("provider").notNull(),
+    /** e.g. "claude-opus-4-8" — the model the tenant chose. */
+    model: text("model").notNull(),
+    /** An ALIAS into the deployment's secret store — never the key. The seam holds the key. */
+    keyRef: text("key_ref").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    tenantIdx: index("tenant_model_bindings_tenant_idx").on(t.tenantId),
+  }),
+);

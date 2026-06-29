@@ -25,15 +25,17 @@ own rewritten `audit.json`; resolution used the in-memory log; the hook was sile
       instead of failing silently. Durable as append-only JSONL (`tools/audit-log.ts`
       `FileAuditLog`), replacing admit's rewritten `audit.json`.
 
-## P3 — "You can always see exactly why your AI does what it does." — PARTIAL
-Slot resolution is explainable; skill selection had no trail; the router is missing; the
-"why" is not surfaced in the UI.
+## P3 — "You can always see exactly why your AI does what it does." — DONE
+Slot resolution is explainable, skill selection has a trail, the router records its
+matches, and all three are now on the interface.
 - [x] Skill resolution trail (`resolveSkills` records won / overridden / blocked-by-lock).
 - [x] The router (`src/router.ts`): deterministic, model-independent per-task relevance from
       trigger surfaces (name + description) only, so bodies stay lazy. A `Router` interface
       lets a model/embedding router swap in; each selection records the matched terms (the
       "why"). `routedNames` feeds `renderPrompt`'s `selected`.
-- [ ] Surface the "why" in the interface — with the interface.
+- [x] Surface the "why" in the interface (`server/why.ts` + the Why tab): why these skills
+      (the resolved set + trail), why each loads for a task (the router's matched terms),
+      and the audit log — all real projections of the engine over the live hive.
 
 ## P4 — "The safe way is the easy way; we won't let you make a wrong move." — DONE
 Admit checked only the exact same slot; no whole-tree duplicate or upward check; no
@@ -46,8 +48,13 @@ tree-integrity guard, wired into the admit flow as a third gate after the human 
       flag at Engine.
 
 ## P5 — "It stays yours: your AI, your keys, no lock-in." — MOSTLY KEPT
-Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys not built.
-- [ ] BYO-keys (admin build, Qalisa reference) — deferred, not blocking.
+Engine is model-agnostic; the hive is portable files; no secrets held.
+- [x] BYO-keys SHAPE baked (`shared/schema.ts` `tenant_model_bindings`): a tenant binds its
+      own provider + model, and only a `keyRef` (an alias into the deployment's secret store)
+      is recorded — never the key. The seam holds the secret.
+- [ ] BYO-keys admin TOOLING — deferred to the admin build, by design: there is no
+      LLM-call surface yet (the engine makes prompts; the model is consumed at the edge), so
+      nothing reads a key. Build it when the serve/admin surface lands. Qalisa is the reference.
 
 ## Build order
 1. Governed skills (P1 skills, P3 skill-trail) — **done**
@@ -56,4 +63,9 @@ Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys 
 4. Authority Principal + tenant-scoping (P2) — **done**
 5. Unified audit substrate (P2, P3) — **done**
 6. The router (model-independent core) — **done**
-7. With the interface/admin: the "why" screen, BYO-keys
+7. The "why" screen (P3, on the interface) — **done**
+8. BYO-keys: shape baked — **done**; admin tooling deferred to the serve/admin build
+
+All five promises are now kept in code and tested. What remains is the live flip (enable
+the SessionStart hook in ~/.claude/settings.json — the test run) and, later, the BYO-keys
+admin tooling once there is a model-call surface to use it.

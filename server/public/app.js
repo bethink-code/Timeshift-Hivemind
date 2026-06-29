@@ -11,6 +11,7 @@ document.querySelectorAll(".tab").forEach((btn) => {
     document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === btn.dataset.tab));
     if (btn.dataset.tab === "admit" && !proposalCache.length) loadAdmit();
+    if (btn.dataset.tab === "why") loadWhy();
   });
 });
 
@@ -97,6 +98,88 @@ async function confirmTicked() {
     (admitted.length ? ` ${admitted.join(", ")}.` : "") +
     (routed.length ? `<br/><span class="routed">Routed up (you lack authority): ${routed.join(", ")}.</span>` : "") +
     `</div>`;
+}
+
+// ---- why ----
+async function loadWhy() {
+  const projects = await (await fetch("/api/why/projects")).json();
+  const opts = projects.map((p) => `<option>${esc(p)}</option>`).join("") || `<option value="">(no projects)</option>`;
+  $("#why").innerHTML =
+    `<div class="controls">Project <select id="why-project">${opts}</select>` +
+    `<span class="muted">Why this project's AI does what it does.</span></div>` +
+    `<h2>Why these skills (the governed set)</h2><div class="card" id="why-resolve"><div class="row muted">…</div></div>` +
+    `<h2>Why loaded for a task</h2>` +
+    `<div class="controls"><input id="why-q" placeholder="describe a task, e.g. review the code" size="44" />` +
+    `<button class="primary" id="why-route-btn">Route</button></div>` +
+    `<div class="card" id="why-route"><div class="row muted">Enter a task to see which skills route in, and why.</div></div>` +
+    `<h2>Every change on the record</h2><div class="card" id="why-audit"><div class="row muted">…</div></div>`;
+
+  const project = () => $("#why-project").value;
+  $("#why-project").addEventListener("change", () => loadWhyResolve(project()));
+  $("#why-route-btn").addEventListener("click", () => loadWhyRoute(project(), $("#why-q").value));
+  $("#why-q").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") loadWhyRoute(project(), $("#why-q").value);
+  });
+
+  loadWhyResolve(projects[0] || "");
+  loadWhyAudit();
+}
+
+async function loadWhyResolve(project) {
+  if (!project) {
+    $("#why-resolve").innerHTML = `<div class="row muted">No project.</div>`;
+    return;
+  }
+  const rows = await (await fetch(`/api/why/resolve?project=${encodeURIComponent(project)}`)).json();
+  $("#why-resolve").innerHTML =
+    rows
+      .map((r) => {
+        const lock = r.locked ? `<span class="badge locked">locked</span>` : `<span class="badge open">open</span>`;
+        const trail = r.trail.map((s) => `<span class="chip">${esc(s.scope)}: ${esc(s.outcome)}</span>`).join(" ");
+        return (
+          `<div class="row"><span class="name">${esc(r.name)}</span>` +
+          `<span class="where">won at ${esc(r.winningScope)}</span> ${lock}` +
+          `<span class="detail">${trail}</span></div>`
+        );
+      })
+      .join("") || `<div class="row muted">No skills for this project.</div>`;
+}
+
+async function loadWhyRoute(project, q) {
+  if (!project || !q.trim()) return;
+  const res = await (await fetch(`/api/why/route?project=${encodeURIComponent(project)}&q=${encodeURIComponent(q)}`)).json();
+  const rows = res.selected
+    .map((s) => {
+      const terms = s.matched.map((m) => `<span class="chip">${esc(m)}</span>`).join(" ") || `<span class="muted">always-on</span>`;
+      return (
+        `<div class="row"><span class="name">${esc(s.name)}</span>` +
+        `<span class="badge ${s.reason}">${esc(s.reason)}</span>` +
+        `<span class="where">score ${esc(s.score)}</span><span class="detail">${terms}</span></div>`
+      );
+    })
+    .join("");
+  $("#why-route").innerHTML =
+    `<div class="row muted">${res.selected.length} of ${res.considered} skills route in for this task.</div>` +
+    (rows || `<div class="row muted">Nothing matched — Claude would run with no extra skill for this task.</div>`);
+}
+
+async function loadWhyAudit() {
+  const events = await (await fetch("/api/why/audit")).json();
+  $("#why-audit").innerHTML = events.length
+    ? events
+        .map((e) => {
+          const d = e.detail || {};
+          const what = d.name ? esc(d.name) : d.project ? esc(d.project) : "";
+          const who = d.by ? ` — ${esc(d.by)}${d.role ? ` (${esc(d.role)})` : ""}` : "";
+          const why = d.reason ? ` — ${esc(d.reason)}` : "";
+          return (
+            `<div class="row"><span class="badge event">${esc(e.type)}</span>` +
+            `<span class="name">${what}</span><span class="where">${esc(e.at)}</span>` +
+            `<span class="detail">${who}${why}</span></div>`
+          );
+        })
+        .join("")
+    : `<div class="row muted">No events recorded yet. Admit a skill or run the hook to see the trail fill.</div>`;
 }
 
 loadEstate();

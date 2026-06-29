@@ -81,8 +81,14 @@ h2:first-child { margin-top: 0; }
 .badge.diverged { background: var(--amber-soft); color: var(--amber); }
 .badge.identical { background: var(--green-soft); color: var(--green); }
 .badge.new { background: var(--accent-soft); color: var(--accent); }
+.badge.locked { background: var(--green-soft); color: var(--green); }
+.badge.open { background: var(--amber-soft); color: var(--amber); }
+.badge.pinned { background: var(--green-soft); color: var(--green); }
+.badge.matched { background: var(--accent-soft); color: var(--accent); }
+.badge.event { background: var(--accent-soft); color: var(--accent); }
 
 .controls { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
+.controls input { font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 select, button.primary {
   font: inherit;
   border-radius: 8px;

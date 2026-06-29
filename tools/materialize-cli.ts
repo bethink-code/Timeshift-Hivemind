@@ -18,15 +18,20 @@
 // current directory) via hive/projects.json.
 
 import { readSync } from "node:fs";
+import { join } from "node:path";
 import {
   cleanTarget,
   hookOutput,
+  materializationEvent,
+  materializeFailureEvent,
   materializeToDisk,
   planMaterialization,
   readHive,
   readProjects,
   resolveProject,
 } from "./materialize";
+import { FileAuditLog } from "./audit-log";
+import type { EngineEvent } from "../src/index";
 
 interface Args {
   readonly hive: string;
@@ -83,15 +88,33 @@ function cwdFromStdin(raw: string): string | undefined {
   }
 }
 
+const args = parseArgs(process.argv.slice(2));
+// Best-effort context for the audit, set as soon as it is known so a later failure can
+// still name the project it was for.
+let project = "unknown";
+
+/** Record an event into the one audit log, but never let auditing break the session: an
+ *  audit failure is swallowed, exactly like every other failure on the hook path. */
+function safeAudit(event: Omit<EngineEvent, "seq">): void {
+  try {
+    new FileAuditLog(join(args.hive, "audit.jsonl")).append([event]);
+  } catch {
+    /* the audit is best-effort on the hook path; degrade to no record, never to no Claude */
+  }
+}
+
+function isoNow(): string {
+  return new Date().toISOString();
+}
+
 function main(): void {
-  const args = parseArgs(process.argv.slice(2));
   if (!args.target) {
     process.stderr.write("materialize: --target is required; doing nothing\n");
     return; // exit 0, no-op
   }
 
   const cwd = cwdFromStdin(readStdin()) ?? process.cwd();
-  const project = args.projectOverride ?? resolveProject(cwd, readProjects(args.hive));
+  project = args.projectOverride ?? resolveProject(cwd, readProjects(args.hive));
 
   const hive = readHive(args.hive);
   const plans = planMaterialization(hive, project);
@@ -99,14 +122,18 @@ function main(): void {
   const written = materializeToDisk(plans, args.target);
 
   process.stderr.write(`materialize: wrote ${written.length} skill(s) for project "${project}"\n`);
-  // only on success do we ask Claude to reload
+  // only on success do we ask Claude to reload — the critical path first, then the record
   process.stdout.write(hookOutput());
+  safeAudit(materializationEvent(project, written, isoNow()));
 }
 
 try {
   main();
 } catch (err) {
-  // Fail safe: never break the session. Leave existing skills exactly as they are.
-  process.stderr.write(`materialize: skipped (${err instanceof Error ? err.message : String(err)})\n`);
+  // Fail safe: never break the session. Leave existing skills exactly as they are, but no
+  // longer silently: record why the session degraded to "no change".
+  const message = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`materialize: skipped (${message})\n`);
+  safeAudit(materializeFailureEvent(project, message, isoNow()));
 }
 process.exit(0);

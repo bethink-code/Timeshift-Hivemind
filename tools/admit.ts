@@ -15,6 +15,7 @@ import {
   requirementFor,
   SCOPE_ORDER,
   type AuthorityDecision,
+  type EngineEvent,
   type IntegrityVerdict,
   type Principal,
   type Role,
@@ -212,6 +213,29 @@ export function applyDecisions(
   }
 
   return { applied, audit, skipped };
+}
+
+// ---- the audit bridge (one substrate, P2/P3) ----
+
+/** Turn the admit audit into EngineEvents, so an admission lands in the same append-only
+ *  log as a resolution rather than in a tool-private file. One event per outcome, carrying
+ *  who (the principal id and role) and why. tenantId is the skill's project; a platform
+ *  (timeshift) skill has no owning tenant and uses the "platform" sentinel. */
+export function admissionEvents(result: AdmitResult, at: string): Omit<EngineEvent, "seq">[] {
+  return result.audit.map((e) => ({
+    type: e.action === "admitted" ? "skill.admitted" : "skill.skipped",
+    tenantId: e.project ?? "platform",
+    at,
+    detail: {
+      name: e.name,
+      scope: e.scope,
+      status: e.status,
+      by: e.by,
+      ...(e.role ? { role: e.role } : {}),
+      ...(e.reason ? { reason: e.reason } : {}),
+      ...(e.project ? { project: e.project } : {}),
+    },
+  }));
 }
 
 // ---- the review surface (the drift note a human reads and ticks) ----

@@ -1,21 +1,23 @@
 // Onboarding for the interface: the admit flow (tools/admit) wired to the file-hive.
 // buildOnboarding proposes admitting the estate's skills into the hive (changing
 // nothing); acceptOnboarding applies ONLY the human-confirmed decisions, writes the
-// confirmed skills into the hive, and appends the audit trail. The authority gate lives
-// in tools/admit.applyDecisions: a decision only takes when its `by` matches the scope's
-// required confirmer.
+// confirmed skills into the hive, and records the outcome into the one audit substrate
+// (the JSONL FileAuditLog), the same log resolution and materialisation emit into. The
+// authority gate lives in tools/admit.applyDecisions: a decision only takes when a
+// verified principal of the right role and tenant confirms it.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
+  admissionEvents,
   applyDecisions,
   propose,
   type AdmitScope,
-  type AuditEntry,
   type Decision,
   type ExistingSkill,
   type IncomingSkill,
 } from "../tools/admit";
+import { FileAuditLog } from "../tools/audit-log";
 import { scanAppBundle, scanProjects } from "../tools/scan";
 import { bundleRoot } from "./estate";
 
@@ -80,18 +82,10 @@ export function acceptOnboarding(root: string, decisions: Decision[]) {
     if (!present) manifest.skills.push({ name: s.name, scope: s.scope, ...(s.project ? { project: s.project } : {}) });
   }
   writeFileSync(join(hiveDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  appendAudit(hiveDir, result.audit, isoNow());
+  new FileAuditLog(join(hiveDir, "audit.jsonl")).append(admissionEvents(result, isoNow()));
   return result;
 }
 
 function isoNow(): string {
   return new Date().toISOString();
-}
-
-function appendAudit(hiveDir: string, entries: readonly AuditEntry[], at: string): void {
-  const path = join(hiveDir, "audit.json");
-  const parsed: unknown = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : [];
-  const log: unknown[] = Array.isArray(parsed) ? parsed : [];
-  for (const e of entries) log.push({ at, ...e });
-  writeFileSync(path, `${JSON.stringify(log, null, 2)}\n`, "utf8");
 }

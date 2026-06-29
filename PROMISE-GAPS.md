@@ -12,15 +12,18 @@ lower). Slots can lock but default to open.
       and enforcement are decoupled: a new `enforcement` (`fail-closed`/`advisory`) axis,
       not the lock, decides whether a failed check hands off.
 
-## P2 — "Nothing changes without the right person's yes; every change on the record." — PARTIAL
-`by` was a self-declared string (no identity); the audit is still fragmented (admit only;
-the hook is silent; direct file edits are unlogged).
+## P2 — "Nothing changes without the right person's yes; every change on the record." — DONE
+`by` was a self-declared string (no identity), and the audit was fragmented (admit kept its
+own rewritten `audit.json`; resolution used the in-memory log; the hook was silent).
 - [x] Authority takes a verified Principal {id, tenant, role}, scoped to a tenant
       (`src/authority.ts` `canConfirm` — enforces role AND tenant; a tenant-admin of one
       tenant cannot act on another. Wired into admit; the demo edge marks the trust
       boundary — identity comes from the session in production, never the request body).
-- [ ] One append-only audit substrate; admit + materialize + resolution all emit; the
-      hook records its failures.
+- [x] One append-only audit substrate (`EngineEvent`): admit (`admissionEvents`),
+      materialisation (`materializationEvent`), and resolution (`recordResolution`) all
+      emit; the hook records `skills.materialized` on success and `materialize.failed`
+      instead of failing silently. Durable as append-only JSONL (`tools/audit-log.ts`
+      `FileAuditLog`), replacing admit's rewritten `audit.json`.
 
 ## P3 — "You can always see exactly why your AI does what it does." — PARTIAL
 Slot resolution is explainable; skill selection had no trail; the router is missing; the
@@ -48,5 +51,5 @@ Engine is model-agnostic; the hive is portable files; no secrets held. BYO-keys 
 2. Flip the slot resolver default (P1 slots) — **done**
 3. Tree-integrity validator (P4) — **done**
 4. Authority Principal + tenant-scoping (P2) — **done**
-5. Unified audit substrate (P2, P3)
+5. Unified audit substrate (P2, P3) — **done**
 6. Later, with the interface/admin: the router, the "why" screen, BYO-keys

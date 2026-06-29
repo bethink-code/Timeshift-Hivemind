@@ -11,7 +11,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { inheritSkills, type Skill, type SkillsByScope } from "../src/index";
+import { inheritSkills, type EngineEvent, type Skill, type SkillsByScope } from "../src/index";
 
 export type HiveScope = "timeshift" | "tenant";
 
@@ -31,9 +31,9 @@ export interface FilePlan {
  * Pure: given the whole hive and one project, the SKILL.md files to write.
  *
  * The cascade decides the set: the global (timeshift) skills plus this project's
- * (tenant) skills, deduped by name with the project winning (inheritSkills, the same
- * most-specific-wins used everywhere else). Switch project and the set changes, which
- * is how one global directory becomes per-project once the hook rewrites it each session.
+ * (tenant) skills, resolved by inheritSkills — top-down and deny-by-default, so a global
+ * skill stands unless it delegated downward (ARCHITECTURE.md, Law 1). Switch project and
+ * the set changes, which is how one global directory becomes per-project each session.
  */
 export function planMaterialization(hive: readonly HiveSkill[], project: string): FilePlan[] {
   const byScope: SkillsByScope = {
@@ -50,6 +50,21 @@ function toSkillMd(s: Skill): string {
 /** The SessionStart hook contract: re-scan the skills directory after we have written. */
 export function hookOutput(): string {
   return JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", reloadSkills: true } });
+}
+
+// ---- audit bridge (one substrate, P2/P3): the materialiser emits too ----
+
+/** A successful materialisation, as an EngineEvent for the one audit log. tenantId is the
+ *  project whose set was written. */
+export function materializationEvent(project: string, written: readonly string[], at: string): Omit<EngineEvent, "seq"> {
+  return { type: "skills.materialized", tenantId: project, at, detail: { project, count: written.length, skills: [...written] } };
+}
+
+/** A failed materialisation. The hook fails safe (it never breaks a session), but the
+ *  failure is no longer silent: it is recorded, so a session that quietly degraded to
+ *  "no change" still leaves a trace of why. */
+export function materializeFailureEvent(project: string, error: string, at: string): Omit<EngineEvent, "seq"> {
+  return { type: "materialize.failed", tenantId: project, at, detail: { project, error } };
 }
 
 // ---- filesystem edge ----

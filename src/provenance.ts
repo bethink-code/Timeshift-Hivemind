@@ -1,11 +1,12 @@
 // The provenance / event log: the visibility substrate (Section 9).
 //
-// "The engine may not do anything it cannot show." Every resolution, override,
-// locked mandate, validator pass or fail, wizard answer, and version bump emits a
-// structured record as it happens. The log exists from the first write (#7), and it
-// is append-only from the first write (#5): the type below exposes no path to update
-// or delete an entry. Tamper-evidence and external storage are deferred (Section 12);
-// the append-only shape is not.
+// "The engine may not do anything it cannot show." Every resolution, override, locked
+// mandate, validator pass or fail, wizard answer, version bump, skill admission, and
+// materialization emits a structured record as it happens — into ONE substrate, so the
+// account is whole rather than scattered across each tool's own log. The log exists from
+// the first write (#7), and it is append-only from the first write (#5): the type below
+// exposes no path to update or delete an entry. Durable storage is an edge adapter (the
+// JSONL FileAuditLog, or the deferred engine_events table); the append-only shape is not.
 
 import type { Provenance } from "./slot";
 
@@ -17,7 +18,11 @@ export type EngineEventType =
   | "mandate.stopped-cascade"
   | "validator.failed"
   | "version.bumped"
-  | "tenant.onboarded";
+  | "tenant.onboarded"
+  | "skill.admitted"
+  | "skill.skipped"
+  | "skills.materialized"
+  | "materialize.failed";
 
 export interface EngineEvent {
   /** Assigned by the log on append; monotonic, gap-free. */

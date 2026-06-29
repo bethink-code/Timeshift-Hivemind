@@ -140,6 +140,10 @@ export function overview(log: AppendOnlyLog, tenantId?: string): Overview {
     "validator.failed": 0,
     "version.bumped": 0,
     "tenant.onboarded": 0,
+    "skill.admitted": 0,
+    "skill.skipped": 0,
+    "skills.materialized": 0,
+    "materialize.failed": 0,
   };
   for (const e of events) byType[e.type] += 1;
   return { totalEvents: events.length, byType: Object.freeze(byType), events };

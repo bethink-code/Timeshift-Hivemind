@@ -184,11 +184,19 @@ async function loadWhyAudit() {
 }
 
 // ---- serve (the proof slice): drive one governed turn ----
-function loadServe() {
+async function loadServe() {
+  let refs = [];
+  try {
+    refs = await (await fetch("/api/serve/tenants")).json();
+  } catch {
+    /* render with an empty picker; the send will surface the error */
+  }
+  const opts = refs.map((r) => `<option value="${esc(r.tenantId)}|${esc(r.agentId)}">${esc(r.label)}</option>`).join("");
   $("#serve").innerHTML =
-    `<div class="controls"><input id="serve-q" placeholder="Ask the governed agent, e.g. explain my retirement benefits" size="48" />` +
+    `<div class="controls">Agent <select id="serve-agent">${opts}</select></div>` +
+    `<div class="controls"><input id="serve-q" placeholder="Ask the agent, e.g. explain my retirement benefits" size="48" />` +
     `<button class="primary" id="serve-btn">Send</button></div>` +
-    `<p class="muted">One governed turn: the resolved rules become the prompt, the model answers, the output is checked — and it ships only if it passes, otherwise it hands off and the output is withheld. The model is configured server-side (right of the seam).</p>` +
+    `<p class="muted">One governed turn for the chosen tenant's agent: the resolved rules become the prompt, the model answers, the output is checked — and it ships only if it passes, otherwise it hands off and the output is withheld. The model is configured server-side (right of the seam).</p>` +
     `<div id="serve-result"></div>`;
   $("#serve-btn").addEventListener("click", runServeTurn);
   $("#serve-q").addEventListener("keydown", (e) => {
@@ -199,6 +207,7 @@ function loadServe() {
 async function runServeTurn() {
   const task = $("#serve-q").value.trim();
   if (!task) return;
+  const [tenantId, agentId] = ($("#serve-agent").value || "|").split("|");
   $("#serve-result").innerHTML = `<p class="loading">Driving the agent…</p>`;
 
   let r;
@@ -206,7 +215,7 @@ async function runServeTurn() {
     const res = await fetch("/api/serve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ task }),
+      body: JSON.stringify({ tenantId, agentId, task }),
     });
     r = await res.json();
     if (!res.ok) throw new Error(r.error || "request failed");

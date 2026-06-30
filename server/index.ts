@@ -19,7 +19,7 @@ import type { Principal, Role } from "../src/index";
 import { assembleEstate } from "./estate";
 import { acceptOnboarding, buildOnboarding } from "./onboard";
 import { whyAudit, whyProjects, whyResolve, whyRoute } from "./why";
-import { runServe } from "./serve-demo";
+import { runServe, tenants } from "./serve-demo";
 
 const root = process.cwd();
 const hiveDir = join(root, "hive");
@@ -68,18 +68,26 @@ app.get("/api/why/audit", (_req, res) => {
   res.json(whyAudit(root));
 });
 
-// ---- the serve loop (the proof slice): drive one governed turn over the demo agent ----
+// ---- the serve loop (the proof slice): drive one governed turn for a chosen agent ----
+
+app.get("/api/serve/tenants", (_req, res) => {
+  res.json(tenants());
+});
 
 app.post("/api/serve", async (req, res) => {
   const body = asRecord(req.body);
+  const tenantId = typeof body?.tenantId === "string" ? body.tenantId : "";
+  const agentId = typeof body?.agentId === "string" ? body.agentId : "";
   const task = typeof body?.task === "string" ? body.task.trim() : "";
-  if (task === "") {
-    res.status(400).json({ error: "task is required" });
+  if (tenantId === "" || agentId === "" || task === "") {
+    res.status(400).json({ error: "tenantId, agentId and task are required" });
     return;
   }
   try {
-    const r = await runServe(task, root);
+    const r = await runServe(tenantId, agentId, task, root);
     res.json({
+      tenantId,
+      agentId,
       model: r.model,
       outcome: r.outcome,
       handoffReason: r.handoffReason ?? null,
@@ -89,8 +97,10 @@ app.post("/api/serve", async (req, res) => {
       events: r.events.map((e) => e.type),
     });
   } catch (err) {
-    // The model call is the one throwing edge; surface it rather than a raw 500/stack.
-    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    // An unknown agent is a 404; the model call is the one other throwing edge → 500. Either
+    // way, surface the message rather than a raw stack.
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(msg.startsWith("unknown agent") ? 404 : 500).json({ error: msg });
   }
 });
 

@@ -83,3 +83,5 @@ export type {
   ServeResult,
 } from "./serve";
 export { serve } from "./serve";
+
+export type { TenantRef, TreeStore } from "./store";

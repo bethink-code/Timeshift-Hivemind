@@ -7,6 +7,8 @@
 //          TIMESHIFT_MODEL     optional — model id (default Claude Opus 4.8)
 //          TIMESHIFT_BASE_URL  optional — an Anthropic-compatible endpoint, e.g. Z.ai
 //          TIMESHIFT_NO_THINK  optional — set to "1" to drop adaptive thinking (compat)
+//          TIMESHIFT_TENANT    optional — which tenant to serve (default: the first agent)
+//          TIMESHIFT_AGENT     optional — which agent under that tenant
 //
 //   Z.ai example (Anthropic-compatible, Bearer auth, GLM model, no thinking param):
 //     TIMESHIFT_AUTH_TOKEN=<z.ai key> TIMESHIFT_BASE_URL=https://api.z.ai/api/anthropic \
@@ -15,7 +17,7 @@
 // The tree, the env→adapter wiring, and the serve+attest step live in server/serve-demo;
 // this is just the terminal entry point onto them.
 
-import { runServe } from "../server/serve-demo";
+import { runServe, tenants } from "../server/serve-demo";
 
 const task = process.argv.slice(2).join(" ").trim();
 if (task === "") {
@@ -23,9 +25,13 @@ if (task === "") {
   process.exit(2);
 }
 
-const result = await runServe(task);
+const first = tenants()[0];
+const tenantId = process.env.TIMESHIFT_TENANT ?? first?.tenantId ?? "demo-tenant";
+const agentId = process.env.TIMESHIFT_AGENT ?? first?.agentId ?? "benefits-counsellor";
+const result = await runServe(tenantId, agentId, task);
 
-console.log(`\nmodel:    ${result.model}`);
+console.log(`\nagent:    ${tenantId}/${agentId}`);
+console.log(`model:    ${result.model}`);
 console.log(`outcome:  ${result.outcome}${result.handoffReason ? ` (${result.handoffReason})` : ""}`);
 if (result.outcome === "shipped") {
   console.log(`\n--- output ---\n${result.output ?? ""}`);

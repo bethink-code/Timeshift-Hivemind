@@ -52,8 +52,16 @@ asserted. Next: slice 2 (a tenant-scoped `loadTree` backbone) replaces the fixtu
     hard-coded behind the adapter, not a tenant feature yet). Does *not* need a database:
     run it against an in-memory or fixture `SlotTree` first.
 
-2. **Multi-tenant backbone.** A tenant-scoped `loadTree` reads a real `SlotTree` from
-    storage; wire `Principal` to real auth; `db:push`. Reopens the parked SaaS stack —
+2. **Multi-tenant backbone.** **✓ SEAM DONE (2026-06-30, in-memory).** `src/store.ts` is the
+    pure `TreeStore` contract (`tenants()` + tenant-scoped `loadTree`); `server/tenants.ts` is
+    an `InMemoryTreeStore` of three governed agents across two tenants, isolated by
+    construction (an agent is unreachable under another tenant's id — `test/store.test.ts`).
+    The Serve screen now picks a tenant's agent; proven live (Acme Health claims-assistant
+    composed its own no-diagnosis rule alongside the inherited platform no-guarantees rule).
+    A tenant-scoped `loadTree` reads a real `SlotTree` from
+    storage; wire `Principal` to real auth; `db:push`. **STILL PENDING (needs accounts):** the
+    Drizzle/Neon-backed `TreeStore` behind the same interface, real `Principal` auth, db:push.
+    Reopens the parked SaaS stack —
     **Neon** (main/dev branches), **Google OAuth**, **Doppler** — all blocked on Garth's
     accounts (`.env.example` exists; do not provision without them). `shared/schema.ts`
     now leaves the orphan state and joins the build (its drift guard already landed).

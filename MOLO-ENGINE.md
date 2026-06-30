@@ -71,8 +71,15 @@ asserted. Next: slice 2 (a tenant-scoped `loadTree` backbone) replaces the fixtu
     the backbone. Reopens spec §13 open questions: answer-shape vocabulary, the
     choice-slot branch mechanism.
 
-4. **Admin.** Tenant/agent authoring (`buildWizard` exists; no UI) and BYO-keys
-    management. Reopens the deferred admin build.
+4. **Admin.** **✓ AGENT AUTHORING DONE (2026-06-30).** The Author screen drives the engine's
+    wizard face: `server/authoring.ts` projects an interview-bearing template via `buildWizard`
+    (tenant-setup purpose + agent voice), validates every answer with `validateAnswer` (the
+    answer-shape boundary — enum/length, server-side), checks names with `isPathSafeName`, then
+    builds a real tree and registers it in the store, attested via `slot.answered`. Proven live:
+    authored agent → appeared in the Serve picker → driven through GLM-4.7 with its authored
+    voice + purpose; an out-of-enum answer was rejected 400. STILL PENDING: BYO-keys management
+    UI (slice 2b / a model-call admin surface), and persistence (authored agents are in-memory
+    until the Drizzle store lands). Reopens the deferred admin build.
 
 ## What stays parked until its slice
 

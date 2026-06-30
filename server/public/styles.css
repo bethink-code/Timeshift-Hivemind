@@ -101,6 +101,13 @@ select, button.primary {
 button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; cursor: pointer; }
 button.primary:hover { filter: brightness(1.05); }
 
+.field { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.field:first-child { border-top: 0; }
+.field label { font-size: 13px; }
+.field .qtext { font-weight: 600; }
+.field input[type="text"] { font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); max-width: 420px; }
+.field select { max-width: 420px; }
+
 .check { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); }
 .check:first-child { border-top: 0; }
 .check input { margin-top: 3px; }

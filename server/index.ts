@@ -20,6 +20,8 @@ import { assembleEstate } from "./estate";
 import { acceptOnboarding, buildOnboarding } from "./onboard";
 import { whyAudit, whyProjects, whyResolve, whyRoute } from "./why";
 import { runServe, tenants } from "./serve-demo";
+import { authorAgent, authoringWizard } from "./authoring";
+import type { SlotValue } from "../src/index";
 
 const root = process.cwd();
 const hiveDir = join(root, "hive");
@@ -104,6 +106,22 @@ app.post("/api/serve", async (req, res) => {
   }
 });
 
+// ---- authoring (slice 4): create a governed agent through the wizard face ----
+
+app.get("/api/author/wizard", (_req, res) => {
+  res.json(authoringWizard());
+});
+
+app.post("/api/author/agent", (req, res) => {
+  const body = asRecord(req.body);
+  const tenantId = typeof body?.tenantId === "string" ? body.tenantId : "";
+  const agentId = typeof body?.agentId === "string" ? body.agentId : "";
+  const label = typeof body?.label === "string" && body.label.trim() !== "" ? body.label.trim() : `${tenantId} · ${agentId}`;
+  const answers = parseAnswers(body?.answers);
+  const result = authorAgent({ tenantId, agentId, label, answers }, root);
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
 const port = Number(process.env.PORT ?? 5000);
 app.listen(port, () => process.stdout.write(`TimeShift Hivemind on http://localhost:${port}\n`));
 
@@ -126,6 +144,20 @@ function parsePrincipal(v: unknown): Principal | undefined {
   const o = asRecord(v);
   if (!o || typeof o.id !== "string" || typeof o.tenant !== "string" || !isRole(o.role)) return undefined;
   return { id: o.id, tenant: o.tenant, role: o.role };
+}
+
+/** Coerce a request body's answers into the SlotValue map authoring expects. Only string /
+ *  boolean / string[] survive; anything else is dropped, so validateAnswer sees clean types
+ *  and an out-of-shape answer is rejected there, not crashed on here. */
+function parseAnswers(v: unknown): Record<string, SlotValue> {
+  const o = asRecord(v);
+  if (!o) return {};
+  const out: Record<string, SlotValue> = {};
+  for (const [k, val] of Object.entries(o)) {
+    if (typeof val === "string" || typeof val === "boolean") out[k] = val;
+    else if (Array.isArray(val) && val.every((x) => typeof x === "string")) out[k] = val as string[];
+  }
+  return out;
 }
 
 function parseDecisions(body: unknown): Decision[] {

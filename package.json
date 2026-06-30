@@ -9,10 +9,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "typecheck:shared": "tsc -p tsconfig.shared.json",
     "build:cli": "esbuild tools/materialize-cli.ts --bundle --platform=node --format=esm --outfile=dist/materialize-cli.mjs",
     "build:scan": "esbuild tools/scan-cli.ts --bundle --platform=node --format=esm --outfile=dist/scan.mjs"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.2",
     "express": "^4.19.2"
   },
   "devDependencies": {

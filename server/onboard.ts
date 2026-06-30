@@ -6,7 +6,7 @@
 // authority gate lives in tools/admit.applyDecisions: a decision only takes when a
 // verified principal of the right role and tenant confirms it.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
   admissionEvents,
@@ -81,7 +81,12 @@ export function acceptOnboarding(root: string, decisions: Decision[]) {
     const present = manifest.skills.some((e) => e.name === s.name && e.scope === s.scope && e.project === s.project);
     if (!present) manifest.skills.push({ name: s.name, scope: s.scope, ...(s.project ? { project: s.project } : {}) });
   }
-  writeFileSync(join(hiveDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  // Atomic write: the SessionStart hook reads this manifest, so it must never observe a
+  // half-written file. Write to a temp sibling, then rename (atomic on the same filesystem).
+  const manifestPath = join(hiveDir, "manifest.json");
+  const manifestTmp = `${manifestPath}.tmp`;
+  writeFileSync(manifestTmp, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  renameSync(manifestTmp, manifestPath);
   new FileAuditLog(join(hiveDir, "audit.jsonl")).append(admissionEvents(result, isoNow()));
   return result;
 }

@@ -3,6 +3,7 @@ dist/
 *.log
 .env
 .env.*
+!.env.example
 
 # Runtime audit substrate — the durable event log is data, not source.
 hive/audit.jsonl

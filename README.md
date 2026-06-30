@@ -33,13 +33,40 @@ truth, materialized into the directory Claude reads on each session.
 
 `ESTATE-ONBOARDING.md` describes the founder-absent onboarding pipeline.
 
-## Develop
+## Run the demo (`server/`)
+
+A lightweight Express app that makes the engine drivable in a browser — the Molo serve
+loop end to end. See `MOLO-ENGINE.md` for the build plan.
 
 ```bash
 npm install
-npm test          # vitest, 67 tests
-npm run typecheck # tsc --noEmit, strict
+cp .env.example .env     # then add a model key (see the file; Claude or any
+                         # Anthropic-compatible endpoint). Optional — see below.
+npm run dev              # http://localhost:5000
 ```
 
-The engine core has no runtime dependencies (sovereign-deployable). The app shell
-(server, persistence in `shared/schema.ts`, auth, and the interface) is the next build.
+Five tabs:
+
+- **Author** — create a governed agent through the engine's wizard. The questions are
+  slot interviews projected by scope; the answer shape (a fixed set, a length limit) is
+  the security control, checked before anything is written.
+- **Serve** — drive that agent: the resolved rules become the prompt, the model answers,
+  the output is validated, and it ships only if it passes — otherwise it hands off and the
+  output is withheld. Shows the governed prompt and the attested events.
+- **Why** — the resolution trail, per-task routing, and the append-only audit log.
+- **Estate** / **Admit** — the skill-estate side: scan, classify, and admit skills into
+  the hive with the confirmer's authority enforced.
+
+The model is configured server-side only (right of the seam, never the browser). Without a
+key the app still runs and every screen works — Serve just hands off instead of answering.
+
+## Develop
+
+```bash
+npm test            # vitest, 123 tests
+npm run typecheck   # tsc --noEmit, strict (also: typecheck:shared)
+```
+
+The engine core (`src/`) has no runtime dependencies (sovereign-deployable). The serve loop
+drives a live, governed agent; a Drizzle/Neon-backed store and real auth (`shared/schema.ts`)
+are the next build.

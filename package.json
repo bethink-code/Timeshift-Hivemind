@@ -5,7 +5,7 @@
   "type": "module",
   "description": "TimeShift resolver core — pure, dependency-free composition engine (spec v0.2)",
   "scripts": {
-    "dev": "node scripts/free-port.mjs && tsx server/index.ts",
+    "dev": "node scripts/free-port.mjs && tsx --env-file-if-exists=.env server/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

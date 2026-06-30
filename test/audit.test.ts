@@ -66,7 +66,7 @@ describe("one substrate: admit, resolution, and materialisation share a log", ()
     expect(o.byType["skills.materialized"]).toBe(1);
     // every type present even at zero: the readout is total, not merely populated
     expect(o.byType["materialize.failed"]).toBe(0);
-    expect(Object.keys(o.byType)).toHaveLength(11);
+    expect(Object.keys(o.byType)).toHaveLength(12);
   });
 });
 

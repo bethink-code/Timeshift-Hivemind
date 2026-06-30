@@ -73,3 +73,13 @@ export { requirementFor, canConfirm } from "./authority";
 
 export type { RouteRequest, RoutedSkill, RouteResult, Router } from "./router";
 export { route, deterministicRouter, routedNames } from "./router";
+
+export type {
+  ModelRequest,
+  ModelAdapter,
+  ServeRequest,
+  ServeOutcome,
+  HandoffReason,
+  ServeResult,
+} from "./serve";
+export { serve } from "./serve";

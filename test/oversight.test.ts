@@ -84,7 +84,8 @@ describe("readout: resolution is never silent, and the overview is total", () =>
     expect(all.totalEvents).toBe(3);
     expect(all.byType["slot.authored"]).toBe(2);
     expect(all.byType["validator.failed"]).toBe(0); // unused, but present: total, not merely populated
-    expect(Object.keys(all.byType)).toHaveLength(11);
+    expect(all.byType["turn.served"]).toBe(0); // unused here, but present (the serve loop emits it)
+    expect(Object.keys(all.byType)).toHaveLength(12);
 
     expect(overview(log, "t1").totalEvents).toBe(2);
   });

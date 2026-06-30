@@ -144,6 +144,7 @@ export function overview(log: AppendOnlyLog, tenantId?: string): Overview {
     "skill.skipped": 0,
     "skills.materialized": 0,
     "materialize.failed": 0,
+    "turn.served": 0,
   };
   for (const e of events) byType[e.type] += 1;
   return { totalEvents: events.length, byType: Object.freeze(byType), events };

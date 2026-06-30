@@ -36,6 +36,14 @@ first surface that un-defers **BYO-keys**: the model binding is an adapter, the 
 held right-of-seam (never in this tree), and the shape is already baked
 (`shared/schema.ts` `tenant_model_bindings` = provider + model + keyRef alias).
 
+**✓ BUILT & PROVEN LIVE (2026-06-30).** `src/serve.ts` is the pure loop (the model is an
+injected `ModelAdapter`, so the core stays I/O-free); `adapters/anthropic.ts` is the first
+real adapter (x-api-key for native Anthropic, Bearer for an Anthropic-compatible endpoint);
+`tools/serve-cli.ts` runs it over a fixture tree. Proven end-to-end against **two providers
+through one unchanged loop** — Claude and **Z.ai GLM-4.7** (`model: anthropic:glm-4.7`,
+shipped, attested seq 16) — which is the model-agnostic (P1) claim demonstrated, not just
+asserted. Next: slice 2 (a tenant-scoped `loadTree` backbone) replaces the fixture tree.
+
 ## Ordered slices, and what each reopens
 
 1. **Serve loop (proof slice).** Model call behind a thin adapter interface + output

@@ -22,7 +22,8 @@ export type EngineEventType =
   | "skill.admitted"
   | "skill.skipped"
   | "skills.materialized"
-  | "materialize.failed";
+  | "materialize.failed"
+  | "turn.served";
 
 export interface EngineEvent {
   /** Assigned by the log on append; monotonic, gap-free. */

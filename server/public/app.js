@@ -12,6 +12,7 @@ document.querySelectorAll(".tab").forEach((btn) => {
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === btn.dataset.tab));
     if (btn.dataset.tab === "admit" && !proposalCache.length) loadAdmit();
     if (btn.dataset.tab === "why") loadWhy();
+    if (btn.dataset.tab === "serve") loadServe();
   });
 });
 
@@ -180,6 +181,54 @@ async function loadWhyAudit() {
         })
         .join("")
     : `<div class="row muted">No events recorded yet. Admit a skill or run the hook to see the trail fill.</div>`;
+}
+
+// ---- serve (the proof slice): drive one governed turn ----
+function loadServe() {
+  $("#serve").innerHTML =
+    `<div class="controls"><input id="serve-q" placeholder="Ask the governed agent, e.g. explain my retirement benefits" size="48" />` +
+    `<button class="primary" id="serve-btn">Send</button></div>` +
+    `<p class="muted">One governed turn: the resolved rules become the prompt, the model answers, the output is checked — and it ships only if it passes, otherwise it hands off and the output is withheld. The model is configured server-side (right of the seam).</p>` +
+    `<div id="serve-result"></div>`;
+  $("#serve-btn").addEventListener("click", runServeTurn);
+  $("#serve-q").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") runServeTurn();
+  });
+}
+
+async function runServeTurn() {
+  const task = $("#serve-q").value.trim();
+  if (!task) return;
+  $("#serve-result").innerHTML = `<p class="loading">Driving the agent…</p>`;
+
+  let r;
+  try {
+    const res = await fetch("/api/serve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task }),
+    });
+    r = await res.json();
+    if (!res.ok) throw new Error(r.error || "request failed");
+  } catch (err) {
+    $("#serve-result").innerHTML = `<div class="result"><span class="badge handoff">error</span> <span class="muted">${esc(err.message)}</span></div>`;
+    return;
+  }
+
+  const badge =
+    r.outcome === "shipped"
+      ? `<span class="badge shipped">shipped</span>`
+      : `<span class="badge handoff">handoff${r.handoffReason ? " · " + esc(r.handoffReason) : ""}</span>`;
+  const body =
+    r.outcome === "shipped"
+      ? `<div class="serve-out">${esc(r.output || "")}</div>`
+      : `<div class="serve-out muted">Output withheld — failed: ${r.failures.map((f) => esc(f.key)).join(", ") || "(model error)"}.</div>`;
+  const events = r.events.map((t) => `<span class="chip">${esc(t)}</span>`).join(" ");
+
+  $("#serve-result").innerHTML =
+    `<div class="result">${badge} <span class="muted">via ${esc(r.model)}</span>${body}</div>` +
+    `<h2>The governed prompt the model received</h2><pre class="prompt">${esc(r.prompt)}</pre>` +
+    `<h2>Attested</h2><div class="card"><div class="row"><span class="detail">${events}</span></div></div>`;
 }
 
 loadEstate();

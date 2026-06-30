@@ -19,6 +19,7 @@ import type { Principal, Role } from "../src/index";
 import { assembleEstate } from "./estate";
 import { acceptOnboarding, buildOnboarding } from "./onboard";
 import { whyAudit, whyProjects, whyResolve, whyRoute } from "./why";
+import { runServe } from "./serve-demo";
 
 const root = process.cwd();
 const hiveDir = join(root, "hive");
@@ -65,6 +66,32 @@ app.get("/api/why/route", (req, res) => {
 
 app.get("/api/why/audit", (_req, res) => {
   res.json(whyAudit(root));
+});
+
+// ---- the serve loop (the proof slice): drive one governed turn over the demo agent ----
+
+app.post("/api/serve", async (req, res) => {
+  const body = asRecord(req.body);
+  const task = typeof body?.task === "string" ? body.task.trim() : "";
+  if (task === "") {
+    res.status(400).json({ error: "task is required" });
+    return;
+  }
+  try {
+    const r = await runServe(task, root);
+    res.json({
+      model: r.model,
+      outcome: r.outcome,
+      handoffReason: r.handoffReason ?? null,
+      prompt: r.prompt, // the governed prompt is instructions, not a secret — showing it IS the point
+      output: r.output ?? null, // withheld (null) on handoff — never leak text that failed its guardrails
+      failures: r.validation.failures.map((f) => ({ key: f.key, reason: f.reason })),
+      events: r.events.map((e) => e.type),
+    });
+  } catch (err) {
+    // The model call is the one throwing edge; surface it rather than a raw 500/stack.
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 const port = Number(process.env.PORT ?? 5000);

@@ -86,6 +86,8 @@ h2:first-child { margin-top: 0; }
 .badge.pinned { background: var(--green-soft); color: var(--green); }
 .badge.matched { background: var(--accent-soft); color: var(--accent); }
 .badge.event { background: var(--accent-soft); color: var(--accent); }
+.badge.shipped { background: var(--green-soft); color: var(--green); }
+.badge.handoff { background: var(--amber-soft); color: var(--amber); }
 
 .controls { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
 .controls input { font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
@@ -107,4 +109,6 @@ button.primary:hover { filter: brightness(1.05); }
 
 .result { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 16px; }
 .result .routed { color: var(--amber); }
+.serve-out { margin-top: 10px; white-space: pre-wrap; }
+.prompt { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; overflow-x: auto; margin: 0; }
 .muted { color: var(--muted); }

@@ -48,31 +48,56 @@ async function loadAdmit() {
   renderAdmit();
 }
 
+// Whether the current actor (role + tenant) may confirm this proposal. Mirrors the engine's
+// authority gate: platform skills need a platform-owner (tenant-unbound); tenant/agent skills
+// need a tenant-admin of that same tenant; staff can never confirm. This only drives the
+// informational banner — you can still tick anything; the server enforces the real gate.
+function canAdmit(role, tenant, p) {
+  if (role !== p.requiredConfirmer) return false;
+  if (p.requiredConfirmer === "tenant-admin") return tenant === p.project;
+  return true;
+}
+
+function eligibilityNote(role, tenant) {
+  const total = proposalCache.length;
+  const can = proposalCache.filter((p) => canAdmit(role, tenant, p)).length;
+  const needs = [...new Set(proposalCache.filter((p) => !canAdmit(role, tenant, p)).map((p) => p.requiredConfirmer))];
+  const tail = can < total ? ` The other ${total - can} need: ${needs.map(esc).join(", ")}.` : "";
+  return `<div class="notice ${can === 0 ? "blocked" : "ok"}">As <strong>${esc(role)}</strong> of <strong>${esc(tenant)}</strong>, you can admit <strong>${can} of ${total}</strong>.${tail}</div>`;
+}
+
 function checkboxRow(p, i) {
-  const conf = p.status === "diverged" ? `<span class="confirmer">confirmer: ${esc(p.requiredConfirmer)}</span>` : "";
+  const needs = `<span class="needs">needs ${esc(p.requiredConfirmer)}</span>`;
+  const detail = p.status === "diverged" ? `<br/><span class="rec">${esc(p.recommendation)}</span> ${needs}` : ` ${needs}`;
   return (
     `<label class="check"><input type="checkbox" data-i="${i}" />` +
     `<span><span class="name">${esc(p.name)}</span> <span class="where">(${where(p)})</span> ` +
-    `<span class="badge ${p.status}">${p.status}</span><br/>` +
-    `<span class="rec">${esc(p.recommendation)}</span> ${conf}</span></label>`
+    `<span class="badge ${p.status}">${esc(p.status)}</span>${detail}</span></label>`
   );
 }
 
 function renderAdmit() {
   const idx = proposalCache.map((p, i) => ({ p, i }));
-  const diverged = idx.filter((x) => x.p.status === "diverged");
-  const safe = idx.filter((x) => x.p.status !== "diverged");
+  const conflicts = idx.filter((x) => x.p.status === "diverged");
+  const additions = idx.filter((x) => x.p.status !== "diverged");
 
   $("#admit").innerHTML =
+    `<p class="muted">${proposalCache.length} skills were found in your estate but aren't in your hive yet. Tick the ones to bring in, then Confirm — nothing is applied until you do. New skills are safe to add; conflicts need a decision.</p>` +
     `<div class="controls">Acting as ` +
     `<select id="role"><option>platform-owner</option><option>tenant-admin</option><option>staff</option></select>` +
     ` of tenant <input id="tenant" value="platform" size="10" />` +
     `<button class="primary" id="confirm">Confirm ticked</button>` +
-    `<span class="muted">Nothing is applied until you confirm.</span></div>` +
-    `<h2>Needs your decision (${diverged.length})</h2><div class="card">${diverged.map((x) => checkboxRow(x.p, x.i)).join("") || '<div class="row muted">none</div>'}</div>` +
-    `<h2>Safe to wave through (${safe.length})</h2><div class="card">${safe.map((x) => checkboxRow(x.p, x.i)).join("")}</div>` +
+    `<span class="muted">demo: who you're signed in as</span></div>` +
+    `<div id="admit-elig">${eligibilityNote("platform-owner", "platform")}</div>` +
+    `<h2>Conflicts — you choose (${conflicts.length})</h2><div class="card">${conflicts.map((x) => checkboxRow(x.p, x.i)).join("") || '<div class="row muted">none</div>'}</div>` +
+    `<h2>New — safe to add (${additions.length})</h2><div class="card">${additions.map((x) => checkboxRow(x.p, x.i)).join("")}</div>` +
     `<div id="result"></div>`;
 
+  const refresh = () => {
+    $("#admit-elig").innerHTML = eligibilityNote($("#role").value, $("#tenant").value || "platform");
+  };
+  $("#role").addEventListener("change", refresh);
+  $("#tenant").addEventListener("input", refresh);
   $("#confirm").addEventListener("click", confirmTicked);
 }
 

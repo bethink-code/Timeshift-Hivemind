@@ -113,6 +113,11 @@ button.primary:hover { filter: brightness(1.05); }
 .check input { margin-top: 3px; }
 .check .rec { color: var(--muted); font-size: 13px; }
 .confirmer { color: var(--amber); font-size: 12px; }
+.needs { color: var(--muted); font-size: 12px; }
+
+.notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin: 0 0 16px; }
+.notice.ok { background: var(--green-soft); color: var(--green); }
+.notice.blocked { background: var(--amber-soft); color: var(--amber); }
 
 .result { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 16px; }
 .result .routed { color: var(--amber); }

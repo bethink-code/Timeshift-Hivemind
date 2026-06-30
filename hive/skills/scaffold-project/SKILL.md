@@ -5,7 +5,20 @@ description: Bootstrap a new full-stack project with React + Vite + Tailwind + E
 
 # Scaffold Project
 
-Create a complete, production-ready full-stack application from scratch with security, shared helpers, and clean architecture built in from day one.
+Create a complete, production-ready full-stack application from scratch with security, shared helpers, clean architecture, and documentation built in from day one.
+
+## Documentation Strategy
+
+**PRD-first, types-as-contract, auto-generated output.**
+
+This scaffold treats documentation as **input for agentic coding**, not output written after the fact. The philosophy:
+
+1. **PRD before code.** Every project starts with a lightweight PRD (`docs/prd.md`) written in Phase A. This is the single biggest lever on output quality — an agent with a precise spec builds a precise thing.
+2. **Types are the contract.** Drizzle schemas (`shared/schema.ts`) and Zod validators are machine-readable documentation. They're the code, so they can't drift. They're what the agent codes against.
+3. **CLAUDE.md is the operating manual.** Written on day one, maintained as the project grows. Tells any agent how to work in this repo — conventions, rules, gotchas.
+4. **API docs are auto-generated, never hand-written.** If and only if something external needs to consume the API, generate OpenAPI from Zod schemas (e.g. `@asteasolutions/zod-to-openapi`). No hand-maintained Swagger files. The type system is the source of truth.
+
+**What we skip on purpose:** hand-written Swagger/OpenAPI specs, Swagger UI as a default, design-first spec files. These are output documentation from the pre-agent era — they add maintenance burden without improving agentic output quality. Reach for auto-generated OpenAPI only when an external consumer requires it.
 
 ## Stack
 
@@ -22,9 +35,13 @@ The setup has four phases. Complete each phase fully before moving on. Each phas
 
 ---
 
-### Phase A: Plan (ask the user, no tools needed)
+### Phase A: Plan + PRD (ask the user, no tools needed)
 
-Ask the user:
+**Write the PRD before anything else.** This is the input documentation that drives code quality in an agentic workflow. A vague prompt builds a vague thing fast; a precise PRD builds a precise thing.
+
+Ask the user for two things in order:
+
+#### A1. Project setup details
 1. **Project name** (lowercase, kebab-case)
 2. **Short description** (one sentence)
 3. **Invite-only?** (default: yes)
@@ -32,6 +49,19 @@ Ask the user:
 5. **ADMIN_EMAIL** — the Google email that will be the seed admin
 
 Note: `channel_binding=require` in Neon URLs is handled automatically by `db.ts` — never ask the user to strip it manually.
+
+#### A2. Product Requirements Document (PRD)
+
+Ask the user to provide (or draft with them) a lightweight PRD covering:
+
+1. **Problem** — one paragraph: what problem does this solve, for whom?
+2. **Data model** — what entities/tables are needed beyond the scaffold defaults (users, sessions, audit_logs)? Sketch the domain tables and key fields.
+3. **Behaviour / acceptance criteria** — bullet points describing what the app does. Write these so they map almost 1:1 to tests. Example: "Admin can create an experiment", "Experiment has status: draft → active → archived".
+4. **Constraints / non-negotiables** — security rules, UX rules, business logic rules that the agent must respect. These get written into CLAUDE.md.
+
+Keep it tight — half a page, not a novel. The PRD is a living document; it evolves as the project does. It gets generated into `docs/prd.md` in Phase C.
+
+**Do not proceed to Phase B until the PRD exists.** If the user says "just build it," push back gently — the PRD is non-negotiable for quality. Offer to draft it from their description and let them refine.
 
 ---
 
@@ -90,6 +120,36 @@ Add to package.json scripts:
 ```json
 "seed:admin": "doppler run -- npx tsx scripts/seed-admin.ts"
 ```
+
+#### C1b. Generate PRD from Phase A
+Create `docs/prd.md` from the Phase A output. Use this template:
+
+```markdown
+# {Project Name}
+
+> {Short description from Phase A}
+
+## Problem
+{One paragraph from A2}
+
+## Data Model
+Beyond scaffold defaults (users, sessions, audit_logs, invited_users, access_requests):
+
+| Table | Purpose | Key Fields |
+|-------|---------|------------|
+| {table} | {purpose} | {fields} |
+
+## Acceptance Criteria
+- [ ] {criterion 1}
+- [ ] {criterion 2}
+- [ ] ...
+
+## Constraints / Non-negotiables
+- {constraint 1}
+- {constraint 2}
+```
+
+Also generate domain tables into `shared/schema.ts` based on the data model above, and add corresponding Zod validators where mutations occur.
 
 #### C2. Install dependencies
 ```bash
@@ -199,7 +259,9 @@ project-name/
       auth.ts                # Auth routes (login, callback, logout, current user)
       admin.ts               # Admin routes (users, invites, access requests, audit, security)
   shared/
-    schema.ts                # Drizzle schema
+    schema.ts                # Drizzle schema — the data contract
+  docs/
+    prd.md                   # Product Requirements Document (from Phase A)
   api/
     index.mjs                # Pre-bundled Vercel function
   .doppler.yaml
@@ -501,6 +563,18 @@ Include `wait-on` and `concurrently` as dependencies. `cross-env` is no longer n
 
 **Do NOT generate a `.env` file.** Secrets live in Doppler. Do NOT add `dotenv` to dependencies — it's unused. The only env-adjacent file is `.env.example` (documentation of which variable names the project needs — no values).
 
+## Optional: Auto-generated OpenAPI
+
+**Only when an external consumer needs the API.** If the app is self-contained (frontend + backend together), skip this entirely — Zod schemas and TypeScript types are the documentation.
+
+When needed:
+1. Install `@asteasolutions/zod-to-openapi` and `swagger-ui-express`
+2. Register your Zod schemas with the OpenAPI registry in a single `server/openapi.ts` file
+3. Mount `GET /api/docs` (Swagger UI) and `GET /api/openapi.json` from the generated spec
+4. Add a CI lint step (`redocly lint openapi.json`) to catch broken specs
+
+The spec generates from the same Zod schemas used for validation — single source of truth, zero drift. Never hand-write or hand-edit the OpenAPI output.
+
 ## After generation
 
 Setup is handled by Phase C and Phase D above. No separate post-generation steps needed.
@@ -529,6 +603,8 @@ The generated CLAUDE.md must include:
 10. **Reusable components** — list Tabs, Stat, LastUpdated, PinnedActionBar; state that all new shared UI goes here
 11. **Guiding principles** — project-specific non-negotiables (from user input)
 12. **Windows quirks** — tsx no-watch, wait-on, channel_binding
+13. **PRD** — "See `docs/prd.md` for what to build. The PRD is the source of truth for scope and acceptance criteria. Update it when scope changes."
+14. **Documentation rules** — "Types (Drizzle + Zod) are the API contract. Never hand-write API docs. If OpenAPI is enabled, it auto-generates from Zod schemas."
 
 ### Rules to embed in generated CLAUDE.md
 - "When adding a new route, create a new file in `server/routes/` — never add to an existing file that handles a different domain."
@@ -541,3 +617,6 @@ The generated CLAUDE.md must include:
 - "Never disable a submit button for validation. Show amber warnings after submission attempt."
 - "No source file should exceed 300 lines. Split before adding."
 - "After ANY server-side change, run `npm run build:api` and commit `api/index.mjs`."
+- "Before adding a feature, check `docs/prd.md` — if it's not in the PRD, update the PRD first, then build."
+- "Zod schemas are the single source of truth for API request/response shapes. Never duplicate them in hand-written docs."
+- "CLAUDE.md is living documentation — update it whenever you add a convention, rule, or gotcha."
